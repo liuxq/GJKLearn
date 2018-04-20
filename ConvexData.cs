@@ -905,9 +905,42 @@ namespace UEEngine
             mAABB.Build(mLstVertices.ToArray());
             mAABB.Extend(AABB.Epsilon);
         }
+
+        PxU32 BruteForceSearch(const Ps::aos::Vec3VArg _dir)const 
+		{
+			using namespace Ps::aos;
+			//brute force
+			//get the support point from the orignal margin
+			FloatV max = V3Dot(V3LoadU(verts[0]), _dir);
+			PxU32 maxIndex=0;
+
+			for(PxU32 i = 1; i < numVerts; ++i)
+			{
+				Ps::prefetchLine(&verts[i], 128);
+				const Vec3V vertex = V3LoadU(verts[i]);
+				const FloatV dist = V3Dot(vertex, _dir);
+				if(FAllGrtr(dist, max))
+				{
+					max = dist;
+					maxIndex = i;
+				}
+			}
+
+			return maxIndex;
+		}
+
+        //This function is used in epa
+		//dir is in the shape space
+		Vector3 supportLocal(Vector3 dir)
+		{
+			//scale dir and put it in the vertex space
+			const Vector3 _dir = M33TrnspsMulV3(vertex2Shape, dir);
+			const int maxIndex = BruteForceSearch(_dir);
+			return M33MulV3(vertex2Shape, V3LoadU(verts[maxIndex]));
+		}
         
         
-    	bool _gjkLocalRayCast(CAPSULE a, Vector3 s, Vector3 r, float _inflation, ref float lambda, ref Vector3 normal, ref Vector3 closestA)
+    	static bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 s, Vector3 r, float _inflation, ref float lambda, ref Vector3 normal, ref Vector3 closestA)
     	{
     		float inflation = _inflation;
     		Vector3 zeroV = Vector3.zero;
@@ -920,7 +953,7 @@ namespace UEEngine
     		Vector3 x = r * _lambda + s;
     		int size = 1;
     		
-    		Vector3 dir = a.getCenter() - b.getCenter();
+    		Vector3 dir = a.Center - b.GetAABB().Center;
     		Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps())? dir : Vector3.right;
     		Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
 
