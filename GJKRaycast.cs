@@ -24,13 +24,27 @@ using UnityEngine;
         }
     }
 
+    struct Index
+    {
+        public int x;
+        public int y;
+        public int z;
+
+        public void Reset()
+        {
+            x = 0;
+            y = 1;
+            z = 2;
+        }
+    }
+
     public class GJKRaycast
     {
         static Vector3 closestPtPointSegment(Vector3[] Q, ref int size)
         {
             Vector3 a = Q[0];
             Vector3 b = Q[1];
-            
+
             //Test degenerated case
             Vector3 ab = (b - a);
             float denom = Vector3.Dot(ab, ab);
@@ -38,24 +52,24 @@ using UnityEngine;
             float nom = Vector3.Dot(ap, ab);
             bool con = FEps >= denom;
             //TODO - can we get rid of this branch? The problem is size, which isn't a vector!
-            if(con)
+            if (con)
             {
                 size = 1;
                 return Q[0];
             }
 
-        /*  int count = BAllEq(con, bTrue);
-            size = 2 - count;*/
-            
+            /*  int count = BAllEq(con, bTrue);
+                size = 2 - count;*/
+
             float tValue = Mathf.Clamp01(nom / denom);
             return ab * tValue + a;
         }
 
-        static Vector3 closestPtPointTriangleBaryCentric(Vector3 a, Vector3 b, Vector3 c, int[] indices, ref int size)
+        static Vector3 closestPtPointTriangleBaryCentric(Vector3 a, Vector3 b, Vector3 c, Index indices, ref int size)
         {
             size = 3;
             float eps = FEps;
-            
+
             Vector3 ab = (b - a);
             Vector3 ac = (c - a);
 
@@ -72,8 +86,8 @@ using UnityEngine;
             bool isFacePoints = (va >= 0) && (vb >= 0) && (vc >= 0);
 
             //face region
-            if(isFacePoints)
-            {   
+            if (isFacePoints)
+            {
                 float nn = Vector3.Dot(n, n);
                 float t = Vector3.Dot(n, a) / nn;
                 return n * t;
@@ -99,42 +113,42 @@ using UnityEngine;
             bool con31 = (d1 >= 0);
             bool con32 = (0 >= d3);
             bool con3 = con30 && con31 && con32;//edge AB region
-            if(con3)
+            if (con3)
             {
                 float toRecipAB = d1 - d3;
-                float recipAB = (Mathf.Abs(toRecipAB) > eps) ? 1/toRecipAB : 0;
+                float recipAB = (Mathf.Abs(toRecipAB) > eps) ? 1 / toRecipAB : 0;
                 float t = d1 * recipAB;
                 return ab * t + a;
             }
-        
+
             //check if p in edge region of BC
             bool con40 = (0 >= va);
             bool con41 = (d4 >= d3);
             bool con42 = (d5 >= d6);
             bool con4 = con40 && con41 && con42; //edge BC region
-            if(con4)
+            if (con4)
             {
                 Vector3 bc = c - b;
                 float toRecipBC = unom + udenom;
-                float recipBC = (Mathf.Abs(toRecipBC) > eps) ? (1/toRecipBC): 0;
+                float recipBC = (Mathf.Abs(toRecipBC) > eps) ? (1 / toRecipBC) : 0;
                 float t = unom * recipBC;
-                indices[0] = indices[1];
-                indices[1] = indices[2];
+                indices.x = indices.y;
+                indices.y = indices.z;
                 return bc * t + b;
             }
-            
+
             //check if p in edge region of AC
             bool con50 = (0 >= vb);
             bool con51 = (d2 >= 0);
             bool con52 = (0 >= d6);
-        
+
             bool con5 = con50 && con51 && con52;//edge AC region
-            if(con5)
+            if (con5)
             {
                 float toRecipAC = d2 - d6;
-                float recipAC = (Mathf.Abs(toRecipAC) > eps) ? (1/toRecipAC) : 0;
+                float recipAC = (Mathf.Abs(toRecipAC) > eps) ? (1 / toRecipAC) : 0;
                 float t = d2 * recipAC;
-                indices[1]=indices[2];
+                indices.y = indices.z;
                 return ac * t + a;
             }
 
@@ -143,7 +157,7 @@ using UnityEngine;
             bool con00 = (0 >= d1); // snom <= 0
             bool con01 = (0 >= d2); // tnom <= 0
             bool con0 = con00 && con01; // vertex region a
-            if(con0)
+            if (con0)
             {
                 return a;
             }
@@ -152,14 +166,14 @@ using UnityEngine;
             bool con10 = (d3 >= 0);
             bool con11 = (d3 >= d4);
             bool con1 = con10 && con11; // vertex region b
-            if(con1)
+            if (con1)
             {
-                indices[0] = indices[1];
+                indices.x = indices.y;
                 return b;
             }
-            
+
             //p is in vertex region outside c
-            indices[0] = indices[2];
+            indices.x = indices.z;
             return c;
 
         }
@@ -167,7 +181,7 @@ using UnityEngine;
         static Vector3 closestPtPointTriangle(Vector3[] Q, Vector3[] A, Vector3[] B, ref int size)
         {
             size = 3;
-        
+
             float eps = FEps;
             Vector3 a = Q[0];
             Vector3 b = Q[1];
@@ -176,23 +190,25 @@ using UnityEngine;
             Vector3 ac = (c - a);
             Vector3 signArea = Vector3.Cross(ab, ac);//0.5*(abXac)
             float area = Vector3.Dot(signArea, signArea);
-            if(eps >= area)
+            if (eps >= area)
             {
                 //degenerate
                 size = 2;
                 return closestPtPointSegment(Q, ref size);
             }
-
+            
             int _size = 0;
-            int []indices =new int[3]{0, 1, 2};
+
+            Index indices = new Index(); indices.Reset();
+
             Vector3 closest = closestPtPointTriangleBaryCentric(a, b, c, indices, ref _size);
 
-            if(_size != 3)
+            if (_size != 3)
             {
-            
-                Vector3 q0 = Q[indices[0]]; Vector3 q1 = Q[indices[1]];
-                Vector3 a0 = A[indices[0]]; Vector3 a1 = A[indices[1]];
-                Vector3 b0 = B[indices[0]]; Vector3 b1 = B[indices[1]];
+
+                Vector3 q0 = Q[indices.x]; Vector3 q1 = Q[indices.y];
+                Vector3 a0 = A[indices.x]; Vector3 a1 = A[indices.y];
+                Vector3 b0 = B[indices.x]; Vector3 b1 = B[indices.y];
 
                 Q[0] = q0; Q[1] = q1;
                 A[0] = a0; A[1] = a1;
@@ -204,83 +220,83 @@ using UnityEngine;
             return closest;
         }
 
-        static Vector3 getClosestPtPointTriangle(Vector3[] Q, BoolV4 bIsOutside4, int[] indices, ref int size)
+        static Vector3 getClosestPtPointTriangle(Vector3[] Q, BoolV4 bIsOutside4, Index indices, ref int size)
         {
             float bestSqDist = float.MaxValue;
-            
-            int []_indices = new int[3]{0, 1, 2};
+
+            Index _indices = new Index(); indices.Reset();
 
             Vector3 result = Vector3.zero;
-        
-            if(bIsOutside4.x)
+
+            if (bIsOutside4.x)
             {
                 //use the original indices, size, v and w
                 result = closestPtPointTriangleBaryCentric(Q[0], Q[1], Q[2], indices, ref size);
                 bestSqDist = Vector3.Dot(result, result);
             }
 
-            if(bIsOutside4.y)
+            if (bIsOutside4.y)
             {
 
                 int _size = 3;
-                _indices[0] = 0; _indices[1] = 2; _indices[2] = 3; 
-                Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[2], Q[3],  _indices, ref _size);
+                _indices.x = 0; _indices.y = 2; _indices.z = 3;
+                Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[2], Q[3], _indices, ref _size);
 
                 float sqDist = Vector3.Dot(q, q);
                 bool con = bestSqDist > sqDist;
-                if(con)
+                if (con)
                 {
                     result = q;
                     bestSqDist = sqDist;
 
-                    indices[0] = _indices[0];
-                    indices[1] = _indices[1];
-                    indices[2] = _indices[2];
+                    indices.x = _indices.x;
+                    indices.y = _indices.y;
+                    indices.z = _indices.z;
 
                     size = _size;
                 }
             }
 
-            if(bIsOutside4.z)
+            if (bIsOutside4.z)
             {
                 int _size = 3;
-                
-                _indices[0] = 0; _indices[1] = 3; _indices[2] = 1; 
+
+                _indices.x = 0; _indices.y = 3; _indices.z = 1;
 
                 Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[3], Q[1], _indices, ref _size);
                 float sqDist = Vector3.Dot(q, q);
                 bool con = bestSqDist > sqDist;
-                if(con)
+                if (con)
                 {
                     result = q;
                     bestSqDist = sqDist;
 
-                    indices[0] = _indices[0];
-                    indices[1] = _indices[1];
-                    indices[2] = _indices[2];
+                    indices.x = _indices.x;
+                    indices.y = _indices.y;
+                    indices.z = _indices.z;
 
                     size = _size;
                 }
 
             }
 
-            if(bIsOutside4.w)
+            if (bIsOutside4.w)
             {
                 int _size = 3;
-                _indices[0] = 1; _indices[1] = 3; _indices[2] = 2; 
+                _indices.x = 1; _indices.y = 3; _indices.z = 2;
                 Vector3 q = closestPtPointTriangleBaryCentric(Q[1], Q[3], Q[2], _indices, ref _size);
 
                 float sqDist = Vector3.Dot(q, q);
                 bool con = bestSqDist > sqDist;
 
-                if(con)
+                if (con)
                 {
                     result = q;
                     bestSqDist = sqDist;
 
-                    indices[0] = _indices[0];
-                    indices[1] = _indices[1];
-                    indices[2] = _indices[2];
+                    indices.x = _indices.x;
+                    indices.y = _indices.y;
+                    indices.z = _indices.z;
 
                     size = _size;
                 }
@@ -334,7 +350,7 @@ using UnityEngine;
             float eps = (1e-4f);
             Vector3 a = Q[0];
             Vector3 b = Q[1];
-            Vector3 c = Q[2];  
+            Vector3 c = Q[2];
             Vector3 d = Q[3];
 
             //degenerated
@@ -342,7 +358,7 @@ using UnityEngine;
             Vector3 ac = (c - a);
             Vector3 n = Vector3.Normalize(Vector3.Cross(ab, ac));
             float signDist = Vector3.Dot(n, (d - a));
-            if(eps > Mathf.Abs(signDist))
+            if (eps > Mathf.Abs(signDist))
             {
                 size = 3;
                 return closestPtPointTriangle(Q, A, B, ref  size);
@@ -350,22 +366,22 @@ using UnityEngine;
 
             BoolV4 bIsOutside4 = PointOutsideOfPlane4(a, b, c, d);
 
-            if(bIsOutside4.BAllEq(false))
+            if (bIsOutside4.BAllEq(false))
             {
                 //All inside
                 return Vector3.zero;
             }
 
-            int []indices = new int[3]{0, 1, 2};
-            
-            Vector3 closest = getClosestPtPointTriangle(Q, bIsOutside4, indices,ref  size);
+            Index indices = new Index(); indices.Reset();
 
-            Vector3 q0 = Q[indices[0]]; Vector3 q1 = Q[indices[1]]; Vector3 q2 = Q[indices[2]];
-            Vector3 a0 = A[indices[0]]; Vector3 a1 = A[indices[1]]; Vector3 a2 = A[indices[2]];
-            Vector3 b0 = B[indices[0]]; Vector3 b1 = B[indices[1]]; Vector3 b2 = B[indices[2]];
+            Vector3 closest = getClosestPtPointTriangle(Q, bIsOutside4, indices, ref  size);
+
+            Vector3 q0 = Q[indices.x]; Vector3 q1 = Q[indices.y]; Vector3 q2 = Q[indices.z];
+            Vector3 a0 = A[indices.x]; Vector3 a1 = A[indices.y]; Vector3 a2 = A[indices.z];
+            Vector3 b0 = B[indices.x]; Vector3 b1 = B[indices.y]; Vector3 b2 = B[indices.z];
             Q[0] = q0; Q[1] = q1; Q[2] = q2;
             A[0] = a0; A[1] = a1; A[2] = a2;
-            B[0] = b0; B[1] = b1; B[2] = b2; 
+            B[0] = b0; B[1] = b1; B[2] = b2;
 
             return closest;
         }
@@ -374,162 +390,165 @@ using UnityEngine;
         {
             //int tempSize = size;
             //calculate a closest from origin to the simplex
-            switch(size)
+            switch (size)
             {
-            case 1:
-                {
-                    return support;
-                }
-            case 2:
-                {
-                return closestPtPointSegment(Q, ref size);
-                }
-            case 3:
-                {
-                return closestPtPointTriangle(Q, A, B, ref size);
-                }
-            case 4:
-                return closestPtPointTetrahedron(Q, A, B, ref size);
-            //default:
+                case 1:
+                    {
+                        return support;
+                    }
+                case 2:
+                    {
+                        return closestPtPointSegment(Q, ref size);
+                    }
+                case 3:
+                    {
+                        return closestPtPointTriangle(Q, A, B, ref size);
+                    }
+                case 4:
+                    return closestPtPointTetrahedron(Q, A, B, ref size);
+                //default:
                 //PX_ASSERT(0);
             }
             return support;
         }
 
-        static float FEps = 0.001f;
+        static float FEps = 0.01f;
 
-        static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 s, Vector3 r, float _inflation, ref float lambda, ref Vector3 normal)
-    	{
-    		float inflation = _inflation;
-    		float maxDist = 999999f;
-    	
-    		float _lambda = 0;//initialLambda;
-    		Vector3 x = r * _lambda + s;
-    		int size = 1;
+        static Vector3[] Q = new Vector3[4]; //simplex set
+        static Vector3[] A = new Vector3[4]; //ConvexHull a simplex set
+        static Vector3[] B = new Vector3[4]; //ConvexHull b simplex set
+
+        static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal)
+        {
+            float inflation = a.Radius;
+            float maxDist = 999999f;
+
+            float _lambda = 0;
+
+            r = -r;
+            Vector3 x = r * _lambda;
+            int size = 1;
 
             Vector3 dir = a.Center - b.GetCenter();
-    		Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps)? dir : Vector3.right;
-    		Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
+            Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps) ? dir : Vector3.right;
+            Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
 
-    		Vector3 initialSupportA = a.supportSweepLocal(-initialSearchDir);
-    		Vector3 initialSupportB = b.supportSweepLocal(initialSearchDir);
-    		 
-    		Vector3 [] Q = new Vector3[4]{initialSupportA - initialSupportB, Vector3.zero, Vector3.zero, Vector3.zero}; //simplex set
-    		Vector3 [] A = new Vector3[4]{initialSupportA, Vector3.zero, Vector3.zero, Vector3.zero}; //ConvexHull a simplex set
-    		Vector3 [] B = new Vector3[4]{initialSupportB, Vector3.zero, Vector3.zero, Vector3.zero}; //ConvexHull b simplex set
-    		 
+            Vector3 initialSupportA = a.supportSweepLocal(-initialSearchDir);
+            Vector3 initialSupportB = b.supportSweepLocal(initialSearchDir);
 
-    		Vector3 closest = Q[0];
-    		Vector3 supportA = initialSupportA;
-    		Vector3 supportB = initialSupportB;
-    		Vector3 support = Q[0];
-    	
+            Q[0] = initialSupportA - initialSupportB; Q[1] = Vector3.zero; Q[2] = Vector3.zero; Q[3] = Vector3.zero; //simplex set
+            A[0] = initialSupportA;                   A[1] = Vector3.zero; A[2] = Vector3.zero; A[3] = Vector3.zero; //ConvexHull a simplex set
+            B[0] = initialSupportB;                   B[1] = Vector3.zero; B[2] = Vector3.zero; B[3] = Vector3.zero; //ConvexHull b simplex set
 
-    		float minMargin = Mathf.Min(a.getSweepMargin(), b.getSweepMargin());
-    		float eps1 = minMargin * 0.1f;
-    		float inflationPlusEps = eps1 + inflation;
-    		float eps2 = eps1 * eps1;
+            Vector3 closest = Q[0];
+            Vector3 supportA = initialSupportA;
+            Vector3 supportB = initialSupportB;
+            Vector3 support = Q[0];
 
-    		float inflation2 = inflationPlusEps * inflationPlusEps;
 
-    		float sDist = Vector3.Dot(closest, closest);
-    		float minDist = sDist;
-    		
-    		bool bNotTerminated = sDist > eps2;
-    		bool bCon = true;
+            //float minMargin = Mathf.Min(a.getSweepMargin(), b.getSweepMargin());
+            float eps1 = 0.1f;//minMargin * 0.1f;
+            float inflationPlusEps = eps1 + inflation;
+            float eps2 = eps1 * eps1;
 
-    		Vector3 nor = closest;
-    		Vector3 prevClosest = closest;
-    		
-    		while(bNotTerminated == true)
-    		{
-    			minDist = sDist;
-    			prevClosest = closest;
+            float inflation2 = inflationPlusEps * inflationPlusEps;
 
-    			Vector3 vNorm = -Vector3.Normalize(closest);
-    			//Vector3 nvNorm = -vNorm;
+            float sDist = Vector3.Dot(closest, closest);
+            float minDist = sDist;
 
-    			supportA= a.supportSweepLocal(vNorm);
-    			supportB= x + b.supportSweepLocal(-vNorm);
-    		
-    			//calculate the support point
-    			support = supportA - supportB;
-    			Vector3 w = -support;
-    			float vw = Vector3.Dot(vNorm, w) - inflationPlusEps;
-    			float vr = Vector3.Dot(vNorm, r);
-    			if(vw > 0)
-    			{
-    				if(vr >= 0)
-    				{
-    					return false;
-    				}
-    				else
-    				{
-    					float _oldLambda = _lambda;
-    					_lambda = _lambda - vw / vr;
-    					if(_lambda > _oldLambda)
-    					{
-    						if(_lambda > 1)
-    						{
-    							return false;
-    						}
-    						Vector3 bPreCenter = x;
-    						x = r * _lambda + s;
-    						
-    						Vector3 offSet =x - bPreCenter;
-    						Vector3 b0 = B[0] + offSet;
-    						Vector3 b1 = B[1] + offSet;
-    						Vector3 b2 = B[2] + offSet;
-    					
-    						B[0] = b0;
-    						B[1] = b1;
-    						B[2] = b2;
+            bool bNotTerminated = sDist > eps2;
+            bool bCon = true;
 
-    						Q[0]= A[0] - b0;
-    						Q[1]= A[1] - b1;
-    						Q[2]= A[2] - b2;
+            Vector3 nor = closest;
+            Vector3 prevClosest = closest;
 
-    						supportB = x + b.supportSweepLocal(-vNorm);
-    						support =  supportA - supportB;
-    						minDist = maxDist;
-    						nor = closest;
-    						//size=0;
-    					}
-    				}
-    			}
+            while (bNotTerminated == true)
+            {
+                minDist = sDist;
+                prevClosest = closest;
 
-    			//ASSERT(size < 4); lxq test
+                Vector3 vNorm = -Vector3.Normalize(closest);
 
-    			A[size]=supportA;
-    			B[size]=supportB;
-    			Q[size++]=support;
-    	
-    			//calculate the closest point between two convex hull
-    			closest = GJKCPairDoSimplex(Q, A, B, support, ref size);
-    			sDist = Vector3.Dot(closest, closest);
+                supportA = a.supportSweepLocal(vNorm);
+                supportB = x + b.supportSweepLocal(-vNorm);
 
-                if (sDist == inflation2)
-                    return false;
-    			
-    			bCon = minDist > sDist;
-    			bNotTerminated = (sDist > inflation2) && bCon;
-    		}
+                //calculate the support point
+                support = supportA - supportB;
+                Vector3 w = -support;
+                float vw = Vector3.Dot(vNorm, w) - inflationPlusEps;
+                float vr = Vector3.Dot(vNorm, r);
+                if (vw > 0)
+                {
+                    if (vr >= 0)
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        float _oldLambda = _lambda;
+                        _lambda = _lambda - vw / vr;
+                        if (_lambda > _oldLambda)
+                        {
+                            if (_lambda > 1)
+                            {
+                                return false;
+                            }
+                            Vector3 bPreCenter = x;
+                            x = r * _lambda;
 
-    		//bool aQuadratic = a.isMarginEqRadius();
-    		//ML:if the Minkowski sum of two objects are too close to the original(eps2 > sDist), we can't take v because we will lose lots of precision. Therefore, we will take
-    		//previous configuration's normal which should give us a reasonable approximation. This effectively means that, when we do a sweep with inflation, we always keep v because
-    		//the shapes converge separated. If we do a sweep without inflation, we will usually use the previous configuration's normal.
-    		nor = ((sDist > eps2) && bCon) ? closest : nor;
-    		nor =  Vector3.Normalize(nor);
-    		normal = nor;
-    		lambda = _lambda;
-    		//Vector3 closestP = bCon ? closest : prevClosest;
+                            Vector3 offSet = x - bPreCenter;
+                            Vector3 b0 = B[0] + offSet;
+                            Vector3 b1 = B[1] + offSet;
+                            Vector3 b2 = B[2] + offSet;
+
+                            B[0] = b0;
+                            B[1] = b1;
+                            B[2] = b2;
+
+                            Q[0] = A[0] - b0;
+                            Q[1] = A[1] - b1;
+                            Q[2] = A[2] - b2;
+
+                            supportB = x + b.supportSweepLocal(-vNorm);
+                            support = supportA - supportB;
+                            minDist = maxDist;
+                            nor = closest;
+                            //size=0;
+                        }
+                    }
+                }
+
+                //ASSERT(size < 4); lxq test
+
+                A[size] = supportA;
+                B[size] = supportB;
+                Q[size++] = support;
+
+                //calculate the closest point between two convex hull
+                closest = GJKCPairDoSimplex(Q, A, B, support, ref size);
+                sDist = Vector3.Dot(closest, closest);
+
+                bCon = minDist > sDist;
+                bNotTerminated = (sDist > inflation2) && bCon;
+            }
+
+            //bool aQuadratic = a.isMarginEqRadius();
+            //ML:if the Minkowski sum of two objects are too close to the original(eps2 > sDist), we can't take v because we will lose lots of precision. Therefore, we will take
+            //previous configuration's normal which should give us a reasonable approximation. This effectively means that, when we do a sweep with inflation, we always keep v because
+            //the shapes converge separated. If we do a sweep without inflation, we will usually use the previous configuration's normal.
+            nor = ((sDist > eps2) && bCon) ? closest : nor;
+            nor = Vector3.Normalize(nor);
+            normal = nor;
+            //lambda = (_lambda > 0) ? _lambda - 0.01f : _lambda;
+            lambda = _lambda;
+            //Vector3 closestP = bCon ? closest : prevClosest;
             //Vector3 closA = Vector3.zero;
             //Vector3 closB = Vector3.zero;
-    		//getClosestPoint(Q, A, B, closestP, closA, closB, size);
-    		//closestA = aQuadratic ? closA - nor * a.getMargin() : closA;  
-    		
-    		return true;
-    	}
+            //getClosestPoint(Q, A, B, closestP, closA, closB, size);
+            //closestA = aQuadratic ? closA - nor * a.getMargin() : closA;  
+
+
+            return true;
+        }
     }
 
