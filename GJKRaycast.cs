@@ -412,7 +412,7 @@ using UnityEngine;
             return support;
         }
 
-        static float FEps = 0.01f;
+        static float FEps = 0.0001f;
 
         static Vector3[] Q = new Vector3[4]; //simplex set
         static Vector3[] A = new Vector3[4]; //ConvexHull a simplex set
@@ -447,7 +447,7 @@ using UnityEngine;
 
 
             //float minMargin = Mathf.Min(a.getSweepMargin(), b.getSweepMargin());
-            float eps1 = 0.1f;//minMargin * 0.1f;
+            float eps1 = 0;//minMargin * 0.1f;
             float inflationPlusEps = eps1 + inflation;
             float eps2 = eps1 * eps1;
 
