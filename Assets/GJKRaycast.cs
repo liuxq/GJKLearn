@@ -464,6 +464,10 @@ using UnityEngine;
 
             while (bNotTerminated == true)
             {
+                GameObject lxq = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                lxq.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                lxq.transform.position = closest;
+
                 minDist = sDist;
                 prevClosest = closest;
 
