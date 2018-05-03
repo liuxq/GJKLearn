@@ -567,5 +567,239 @@ using UnityEngine;
 
             return true;
         }
+        
+        
+    //ML: if we are using gjk local which means one of the object will be sphere/capsule, in that case, if we define takeCoreShape is true, we just need to return the closest point as the sphere center or a point in the capsule segment. This will increase the stability
+    //for the manifold recycling code
+    PX_GJK_FORCE_INLINE gjkLocalPenetration(ConvexA a, ConvexB b, Ps::aos::FloatVArg _contactDist, Ps::aos::Vec3V& contactA, Ps::aos::Vec3V& contactB, Ps::aos::Vec3V& normal, Ps::aos::FloatV& penetrationDepth,
+        PxU8* __restrict aIndices, PxU8* __restrict bIndices, PxU8& _size, bool takeCoreShape)
+    {
+        using namespace Ps::aos;
+
+    
+        FloatV contactDist = _contactDist;
+        FloatV zero = FZero();
+
+        FloatV marginA = a.getMargin();
+        FloatV marginB = b.getMargin();
+
+        FloatV minMargin = FMin(a.getMinMargin(), b.getMinMargin());
+        FloatV _eps2 = FMul(minMargin, FLoad(0.1f));
+        //ML: eps2 is the threshold that uses to detemine whether two (shrunk) shapes overlap. We calculate eps2 based on 10% of the minimum margin of two shapes
+        FloatV eps2 = FMul(_eps2, _eps2);
+        //ML: epsRel2 is the square of 1.5%. This is used to scale the the sqaure distance of a closet point to origin to detemine whether two shrunk shapes overlap in the margin, but
+        //they don't overlap.
+        FloatV epsRel2 = FLoad(GJK_RELATIVE_EPSILON); 
+        
+        Vec3V zeroV = V3Zero();
+        BoolV bTrue = BTTTT();
+        BoolV bFalse = BFFFF();
+        
+        FloatV sumOrignalMargin = FAdd(marginA, marginB);
+
+        FloatV sDist = FMax();
+        FloatV minDist= sDist;
+
+        BoolV bNotTerminated = bTrue;
+        BoolV bCon = bTrue;
+        Vec3V closest;
+        
+
+        Vec3V Q[4];
+        Vec3V A[4];
+        Vec3V B[4];
+        PxI32 aInd[4];
+        PxI32 bInd[4];
+        Vec3V supportA = zeroV, supportB = zeroV, support=zeroV;
+
+        PxU32 size = 0;//_size;
+        
+        //ML: if _size!=0, which means we pass in the previous frame simplex so that we can warm-start the simplex. 
+        //In this case, GJK will normally terminate in one iteration
+        if(_size != 0)
+        {
+            for(PxU32 i=0; i<_size; ++i)
+            {
+                aInd[i] = aIndices[i];
+                bInd[i] = bIndices[i];
+                supportA = a.supportPoint(aIndices[i]);
+                supportB = b.supportPoint(bIndices[i]);
+                support = V3Sub(supportA, supportB);
+
+                //ML: this is used to varify whether we will have duplicate vertices in the warm-start value. If this function get triggered,
+                //this means something isn't right and we need to investigate
+                //validateDuplicateVertex(Q, support, size);
+
+                A[size] = supportA;
+                B[size] =  supportB;
+                Q[size++] = support;
+            }
+
+            //run simplex solver to determine whether the point is closest enough so that gjk can terminate
+            closest = GJKCPairDoSimplex(Q, A, B, aInd, bInd, support, size);
+
+            sDist = V3Dot(closest, closest);
+            minDist = sDist;
+            
+            bNotTerminated = FIsGrtr(sDist, eps2);
+        }
+        else
+        {
+            Vec3V _initialSearchDir = V3Sub(a.getCenter(), b.getCenter());
+            closest = V3Sel(FIsGrtr(V3Dot(_initialSearchDir, _initialSearchDir), zero), _initialSearchDir, V3UnitX());
+        }
+
+        Vec3V prevClosest = closest;
+        
+        // ML : termination condition
+        //(1)two (shrunk)shapes overlap. GJK will terminate based on sq(v) < eps2 and indicate that two shapes are overlapping.
+        //(2)two (shrunk + margin)shapes separate. If sq(vw) > sqMargin * sq(v), which means the original objects do not intesect, GJK terminate with GJK_NON_INTERSECT. 
+        //(3)two (shrunk) shapes don't overlap. However, they interect within margin distance. if sq(v)- vw < epsRel2*sq(v), this means the shrunk shapes interect in the margin, 
+        //   GJK terminate with GJK_CONTACT.
+        while(BAllEq(bNotTerminated, bTrue))
+        {
+            //minDist, tempClosA, tempClosB are used to store the previous iteration's closest points(in A and B space) and the square distance from the closest point
+            //to origin in Mincowski space
+            minDist = sDist;
+            prevClosest = closest;
+
+            supportA=a.supportLocal(V3Neg(closest), A[size], aInd[size]);
+            supportB=b.supportLocal(closest, B[size], bInd[size]);
+            
+        
+            //calculate the support point
+            support = V3Sub(supportA, supportB);
+            Q[size]=support;
+
+            //ML: because we shrink the shapes by plane shifting(box and convexhull), the distance from the "shrunk" vertices to the original vertices may be larger than contact distance. 
+            //therefore, we need to take the largest of these 2 values into account so that we don't incorrectly declare shapes to be disjoint. If we don't do this, there is
+            //an inherent inconsistency between fallback SAT tests and GJK tests that may result in popping due to SAT discovering deep penetrations that were not detected by
+            //GJK operating on a shrunk shape.
+            FloatV maxMarginDif = FMax(a.getMarginDif(), b.getMarginDif());
+            contactDist = FMax(contactDist, maxMarginDif);
+            //contactDist = FSel(FIsGrtr(contactDist, maxMarginDif), contactDist, maxMarginDif); 
+            FloatV sumMargin = FAdd(sumOrignalMargin, contactDist);
+            FloatV sqMargin = FMul(sumMargin, sumMargin);
+            FloatV tmp = FMul(sDist, sqMargin);//FMulAdd(sDist, sqMargin, eps3);
+
+            FloatV vw = V3Dot(closest, support);
+            FloatV sqVW = FMul(vw, vw);
+
+            
+            BoolV bTmp1 = FIsGrtr(vw, zero);
+            BoolV bTmp2 = FIsGrtr(sqVW, tmp);
+            BoolV con = BAnd(bTmp1, bTmp2);//this is the non intersect condition
+
+
+            FloatV tmp1 = FSub(sDist, vw);
+            FloatV tmp2 = FMul(epsRel2, sDist);
+            BoolV conGrtr = FIsGrtrOrEq(tmp2, tmp1);//this is the margin intersect condition
+
+            BoolV conOrconGrtr(BOr(con, conGrtr));
+
+            if(BAllEq(conOrconGrtr, bTrue))
+            {
+                //store warm start indices
+                assignWarmStartValue(aIndices, bIndices, _size, aInd, bInd, size-1);
+                //size--; if you want to get the correct size, this line need to be on
+                if(BAllEq(con, bFalse)) //must be true otherwise we wouldn't be in here...
+                {
+                    FloatV dist = FSqrt(sDist);
+                    PX_ASSERT(FAllGrtr(dist, FEps()));
+                    Vec3V n = V3ScaleInv(closest, dist);//normalise
+                    normal = n; 
+                    Vec3V closA, closB;
+                    getClosestPoint(Q, A, B, closest, closA, closB, size);
+                    if(takeCoreShape)
+                    {
+                        BoolV aQuadratic = a.isMarginEqRadius();
+                        BoolV bQuadratic = b.isMarginEqRadius();
+                        FloatV shrunkFactorA = FSel(aQuadratic, zero, marginA);
+                        FloatV shrunkFactorB = FSel(bQuadratic, zero, marginB);
+                        FloatV sumShrunkFactor = FAdd(shrunkFactorA, shrunkFactorB);
+                        contactA = V3NegScaleSub(n, shrunkFactorA, closA);
+                        contactB = V3ScaleAdd(n, shrunkFactorB, closB);
+                        penetrationDepth = FSub(dist, sumShrunkFactor);
+                    
+                    }
+                    else
+                    {
+                        contactA = V3NegScaleSub(n, marginA, closA);
+                        contactB = V3ScaleAdd(n, marginB, closB);
+                        penetrationDepth = FSub(dist, sumOrignalMargin);
+                    }
+                    
+                    return GJK_CONTACT;
+                    
+                }
+                else
+                {
+                    return GJK_NON_INTERSECT;
+                }
+            }
+
+            size++;
+            PX_ASSERT(size <= 4);
+
+            //calculate the closest point between two convex hull
+            closest = GJKCPairDoSimplex(Q, A, B, aInd, bInd, support, size);
+
+            sDist = V3Dot(closest, closest);
+
+            bCon = FIsGrtr(minDist, sDist);
+            bNotTerminated = BAnd(FIsGrtr(sDist, eps2), bCon);
+        }
+
+        if(BAllEq(bCon, bFalse))
+        {
+            sDist = minDist;
+            assignWarmStartValue(aIndices, bIndices, _size, aInd, bInd, size-1);
+            FloatV sumExpandedMargin = FAdd(sumOrignalMargin, contactDist);
+            FloatV sqExpandedMargin = FMul(sumExpandedMargin, sumExpandedMargin);
+            //Reset back to older closest point
+            closest = prevClosest;//V3Sub(closA, closB);
+            Vec3V closA, closB;
+            getClosestPoint(Q, A, B, closest, closA, closB, size);
+
+            sDist = minDist;
+
+            FloatV dist = FSqrt(sDist);
+            PX_ASSERT(FAllGrtr(dist, FEps()));
+            Vec3V n = V3ScaleInv(closest, dist);//normalise
+
+            if(takeCoreShape)
+            {
+                BoolV aQuadratic = a.isMarginEqRadius();
+                BoolV bQuadratic = b.isMarginEqRadius();
+                FloatV shrunkFactorA = FSel(aQuadratic, zero, marginA);
+                FloatV shrunkFactorB = FSel(bQuadratic, zero, marginB);
+                FloatV sumShrunkFactor = FAdd(shrunkFactorA, shrunkFactorB);
+                contactA = V3NegScaleSub(n, shrunkFactorA, closA);
+                contactB = V3ScaleAdd(n, shrunkFactorB, closB);
+                penetrationDepth = FSub(dist, sumShrunkFactor);
+            }
+            else
+            {
+                contactA = V3NegScaleSub(n, marginA, closA);
+                contactB = V3ScaleAdd(n, marginB, closB);
+                penetrationDepth = FSub(dist, sumOrignalMargin);
+            }
+            normal = n;
+            if(FAllGrtrOrEq(sqExpandedMargin, sDist))
+            {
+                
+                return GJK_CONTACT;  
+            }
+            return GJK_DEGENERATE;  
+
+        }
+        else 
+        {
+            //this two shapes are deeply intersected with each other, we need to use EPA algorithm to calculate MTD
+            assignWarmStartValue(aIndices, bIndices, _size, aInd, bInd, size);
+            return EPA_CONTACT;
+            
+        }
+    }
     }
 
