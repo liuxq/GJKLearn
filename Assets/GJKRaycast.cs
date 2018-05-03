@@ -65,7 +65,7 @@ using UnityEngine;
             return ab * tValue + a;
         }
 
-        static Vector3 closestPtPointTriangleBaryCentric(Vector3 a, Vector3 b, Vector3 c, Index indices, ref int size)
+        static Vector3 closestPtPointTriangleBaryCentric(Vector3 a, Vector3 b, Vector3 c, ref Index indices, ref int size)
         {
             size = 3;
             float eps = FEps;
@@ -201,7 +201,7 @@ using UnityEngine;
 
             Index indices = new Index(); indices.Reset();
 
-            Vector3 closest = closestPtPointTriangleBaryCentric(a, b, c, indices, ref _size);
+            Vector3 closest = closestPtPointTriangleBaryCentric(a, b, c, ref indices, ref _size);
 
             if (_size != 3)
             {
@@ -231,7 +231,7 @@ using UnityEngine;
             if (bIsOutside4.x)
             {
                 //use the original indices, size, v and w
-                result = closestPtPointTriangleBaryCentric(Q[0], Q[1], Q[2], indices, ref size);
+                result = closestPtPointTriangleBaryCentric(Q[0], Q[1], Q[2], ref indices, ref size);
                 bestSqDist = Vector3.Dot(result, result);
             }
 
@@ -240,7 +240,7 @@ using UnityEngine;
 
                 int _size = 3;
                 _indices.x = 0; _indices.y = 2; _indices.z = 3;
-                Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[2], Q[3], _indices, ref _size);
+                Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[2], Q[3], ref _indices, ref _size);
 
                 float sqDist = Vector3.Dot(q, q);
                 bool con = bestSqDist > sqDist;
@@ -263,7 +263,7 @@ using UnityEngine;
 
                 _indices.x = 0; _indices.y = 3; _indices.z = 1;
 
-                Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[3], Q[1], _indices, ref _size);
+                Vector3 q = closestPtPointTriangleBaryCentric(Q[0], Q[3], Q[1], ref _indices, ref _size);
                 float sqDist = Vector3.Dot(q, q);
                 bool con = bestSqDist > sqDist;
                 if (con)
@@ -284,7 +284,7 @@ using UnityEngine;
             {
                 int _size = 3;
                 _indices.x = 1; _indices.y = 3; _indices.z = 2;
-                Vector3 q = closestPtPointTriangleBaryCentric(Q[1], Q[3], Q[2], _indices, ref _size);
+                Vector3 q = closestPtPointTriangleBaryCentric(Q[1], Q[3], Q[2], ref _indices, ref _size);
 
                 float sqDist = Vector3.Dot(q, q);
                 bool con = bestSqDist > sqDist;
@@ -418,8 +418,9 @@ using UnityEngine;
         static Vector3[] A = new Vector3[4]; //ConvexHull a simplex set
         static Vector3[] B = new Vector3[4]; //ConvexHull b simplex set
 
-        static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal)
+        static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid)
         {
+            bool _StartSolid = true;
             float inflation = a.Radius;
             float maxDist = 999999f;
 
@@ -445,7 +446,6 @@ using UnityEngine;
             Vector3 supportB = initialSupportB;
             Vector3 support = Q[0];
 
-
             //float minMargin = Mathf.Min(a.getSweepMargin(), b.getSweepMargin());
             float eps1 = 0;//minMargin * 0.1f;
             float inflationPlusEps = eps1 + inflation;
@@ -464,22 +464,28 @@ using UnityEngine;
 
             while (bNotTerminated == true)
             {
-                GameObject lxq = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                lxq.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-                lxq.transform.position = closest;
+                //GameObject lxq = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                //lxq.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                //lxq.transform.position = closest;
 
                 minDist = sDist;
                 prevClosest = closest;
 
-                Vector3 vNorm = -Vector3.Normalize(closest);
+                //Vector3 vNorm = -Vector3.Normalize(closest);
+                Vector3 vNorm = -(closest);
 
                 supportA = a.supportSweepLocal(vNorm);
                 supportB = x + b.supportSweepLocal(-vNorm);
 
                 //calculate the support point
                 support = supportA - supportB;
+
+                //GameObject lxq1 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                //lxq1.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+                //lxq1.transform.position = support;
+
                 Vector3 w = -support;
-                float vw = Vector3.Dot(vNorm, w) - inflationPlusEps;
+                float vw = Vector3.Dot(vNorm, w)/vNorm.magnitude - inflationPlusEps;
                 float vr = Vector3.Dot(vNorm, r);
                 if (vw > 0)
                 {
@@ -489,6 +495,7 @@ using UnityEngine;
                     }
                     else
                     {
+                        _StartSolid = false;
                         float _oldLambda = _lambda;
                         _lambda = _lambda - vw / vr;
                         if (_lambda > _oldLambda)
@@ -545,6 +552,12 @@ using UnityEngine;
             normal = nor;
             //lambda = (_lambda > 0) ? _lambda - 0.01f : _lambda;
             lambda = _lambda;
+            StartSolid = _StartSolid;
+
+            if(StartSolid)
+            {
+                int c = 0;
+            }
             //Vector3 closestP = bCon ? closest : prevClosest;
             //Vector3 closA = Vector3.zero;
             //Vector3 closB = Vector3.zero;
