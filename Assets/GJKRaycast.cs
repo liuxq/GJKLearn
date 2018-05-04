@@ -471,8 +471,7 @@ using UnityEngine;
                 minDist = sDist;
                 prevClosest = closest;
 
-                //Vector3 vNorm = -Vector3.Normalize(closest);
-                Vector3 vNorm = -(closest);
+                Vector3 vNorm = -Vector3.Normalize(closest);
 
                 supportA = a.supportSweepLocal(vNorm);
                 supportB = x + b.supportSweepLocal(-vNorm);
@@ -485,7 +484,7 @@ using UnityEngine;
                 //lxq1.transform.position = support;
 
                 Vector3 w = -support;
-                float vw = Vector3.Dot(vNorm, w)/vNorm.magnitude - inflationPlusEps;
+                float vw = Vector3.Dot(vNorm, w) - inflationPlusEps;
                 float vr = Vector3.Dot(vNorm, r);
                 if (vw > 0)
                 {
