@@ -34,8 +34,10 @@ public class Test : MonoBehaviour {
         Vector3 delta = new Vector3(0, -0.08f, 0);
 
         bool startSolid = false;
-        bool ret = GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid);
-        if(ret)
+        //bool ret = GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid);
+
+        GJKRaycast.GJKType ret = GJKRaycast.gjkLocalPenetration(cap, cd, 0, ref normal, ref lambda);
+        if(true)
         {
             Debug.Log("Success!" + lambda);
             Debug.Log("Success!" + normal);
