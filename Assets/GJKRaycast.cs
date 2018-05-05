@@ -1,7 +1,7 @@
 ﻿/*
- * CREATED:     2014-12-31 14:43:43
- * PURPOSE:     Convex hull data
- * AUTHOR:      Wangrui
+ * CREATED:     2018-5-5
+ * PURPOSE:     GJK Raycast
+ * AUTHOR:      Lxq
  */
 
 using System;
@@ -10,7 +10,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-
+namespace UEEngine
+{
     struct BoolV4
     {
         public bool x;
@@ -178,7 +179,7 @@ using UnityEngine;
 
         }
 
-        static Vector3 closestPtPointTriangle(Vector3[] Q, Vector3[] A, Vector3[] B, ref int size)
+        static Vector3 closestPtPointTriangle(Vector3[] Q, ref int size)
         {
             size = 3;
 
@@ -196,7 +197,7 @@ using UnityEngine;
                 size = 2;
                 return closestPtPointSegment(Q, ref size);
             }
-            
+
             int _size = 0;
 
             Index indices = new Index(); indices.Reset();
@@ -205,14 +206,8 @@ using UnityEngine;
 
             if (_size != 3)
             {
-
                 Vector3 q0 = Q[indices.x]; Vector3 q1 = Q[indices.y];
-                Vector3 a0 = A[indices.x]; Vector3 a1 = A[indices.y];
-                Vector3 b0 = B[indices.x]; Vector3 b1 = B[indices.y];
-
                 Q[0] = q0; Q[1] = q1;
-                A[0] = a0; A[1] = a1;
-                B[0] = b0; B[1] = b1;
 
                 size = _size;
             }
@@ -220,11 +215,11 @@ using UnityEngine;
             return closest;
         }
 
-        static Vector3 getClosestPtPointTriangle(Vector3[] Q, BoolV4 bIsOutside4, Index indices, ref int size)
+        static Vector3 getClosestPtPointTriangle(Vector3[] Q, BoolV4 bIsOutside4, ref Index indices, ref int size)
         {
             float bestSqDist = float.MaxValue;
 
-            Index _indices = new Index(); indices.Reset();
+            Index _indices = new Index(); _indices.Reset();
 
             Vector3 result = Vector3.zero;
 
@@ -345,7 +340,7 @@ using UnityEngine;
             return ret;//same side, outside of the plane
         }
 
-        static Vector3 closestPtPointTetrahedron(Vector3[] Q, Vector3[] A, Vector3[] B, ref int size)
+        static Vector3 closestPtPointTetrahedron(Vector3[] Q, ref int size)
         {
             float eps = (1e-4f);
             Vector3 a = Q[0];
@@ -361,7 +356,7 @@ using UnityEngine;
             if (eps > Mathf.Abs(signDist))
             {
                 size = 3;
-                return closestPtPointTriangle(Q, A, B, ref  size);
+                return closestPtPointTriangle(Q, ref  size);
             }
 
             BoolV4 bIsOutside4 = PointOutsideOfPlane4(a, b, c, d);
@@ -373,22 +368,16 @@ using UnityEngine;
             }
 
             Index indices = new Index(); indices.Reset();
-
-            Vector3 closest = getClosestPtPointTriangle(Q, bIsOutside4, indices, ref  size);
+            Vector3 closest = getClosestPtPointTriangle(Q, bIsOutside4, ref indices, ref  size);
 
             Vector3 q0 = Q[indices.x]; Vector3 q1 = Q[indices.y]; Vector3 q2 = Q[indices.z];
-            Vector3 a0 = A[indices.x]; Vector3 a1 = A[indices.y]; Vector3 a2 = A[indices.z];
-            Vector3 b0 = B[indices.x]; Vector3 b1 = B[indices.y]; Vector3 b2 = B[indices.z];
             Q[0] = q0; Q[1] = q1; Q[2] = q2;
-            A[0] = a0; A[1] = a1; A[2] = a2;
-            B[0] = b0; B[1] = b1; B[2] = b2;
 
             return closest;
         }
 
-        static Vector3 GJKCPairDoSimplex(Vector3[] Q, Vector3[] A, Vector3[] B, Vector3 support, ref int size)
+        static Vector3 GJKCPairDoSimplex(Vector3[] Q, Vector3 support, ref int size)
         {
-            //int tempSize = size;
             //calculate a closest from origin to the simplex
             switch (size)
             {
@@ -402,10 +391,10 @@ using UnityEngine;
                     }
                 case 3:
                     {
-                        return closestPtPointTriangle(Q, A, B, ref size);
+                        return closestPtPointTriangle(Q, ref size);
                     }
                 case 4:
-                    return closestPtPointTetrahedron(Q, A, B, ref size);
+                    return closestPtPointTetrahedron(Q, ref size);
                 //default:
                 //PX_ASSERT(0);
             }
@@ -415,14 +404,12 @@ using UnityEngine;
         static float FEps = 0.0001f;
 
         static Vector3[] Q = new Vector3[4]; //simplex set
-        static Vector3[] A = new Vector3[4]; //ConvexHull a simplex set
-        static Vector3[] B = new Vector3[4]; //ConvexHull b simplex set
 
         static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid)
         {
             bool _StartSolid = true;
             float inflation = a.Radius;
-            float maxDist = 999999f;
+            float maxDist = float.MaxValue;
 
             float _lambda = 0;
 
@@ -430,7 +417,7 @@ using UnityEngine;
             Vector3 x = r * _lambda;
             int size = 1;
 
-            Vector3 dir = a.Center - b.GetCenter();
+            Vector3 dir = a.Center - b.GetAABB().Center;
             Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps) ? dir : Vector3.right;
             Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
 
@@ -438,8 +425,6 @@ using UnityEngine;
             Vector3 initialSupportB = b.supportSweepLocal(initialSearchDir);
 
             Q[0] = initialSupportA - initialSupportB; Q[1] = Vector3.zero; Q[2] = Vector3.zero; Q[3] = Vector3.zero; //simplex set
-            A[0] = initialSupportA;                   A[1] = Vector3.zero; A[2] = Vector3.zero; A[3] = Vector3.zero; //ConvexHull a simplex set
-            B[0] = initialSupportB;                   B[1] = Vector3.zero; B[2] = Vector3.zero; B[3] = Vector3.zero; //ConvexHull b simplex set
 
             Vector3 closest = Q[0];
             Vector3 supportA = initialSupportA;
@@ -464,10 +449,6 @@ using UnityEngine;
 
             while (bNotTerminated == true)
             {
-                //GameObject lxq = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                //lxq.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-                //lxq.transform.position = closest;
-
                 minDist = sDist;
                 prevClosest = closest;
 
@@ -478,11 +459,6 @@ using UnityEngine;
 
                 //calculate the support point
                 support = supportA - supportB;
-
-                //GameObject lxq1 = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                //lxq1.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-                //lxq1.transform.position = support;
-
                 Vector3 w = -support;
                 float vw = Vector3.Dot(vNorm, w) - inflationPlusEps;
                 float vr = Vector3.Dot(vNorm, r);
@@ -507,19 +483,12 @@ using UnityEngine;
                             x = r * _lambda;
 
                             Vector3 offSet = x - bPreCenter;
-                            Vector3 b0 = B[0] + offSet;
-                            Vector3 b1 = B[1] + offSet;
-                            Vector3 b2 = B[2] + offSet;
 
-                            B[0] = b0;
-                            B[1] = b1;
-                            B[2] = b2;
+                            Q[0] -= offSet;
+                            Q[1] -= offSet;
+                            Q[2] -= offSet;
 
-                            Q[0] = A[0] - b0;
-                            Q[1] = A[1] - b1;
-                            Q[2] = A[2] - b2;
-
-                            supportB = x + b.supportSweepLocal(-vNorm);
+                            supportB += offSet;
                             support = supportA - supportB;
                             minDist = maxDist;
                             nor = closest;
@@ -529,13 +498,10 @@ using UnityEngine;
                 }
 
                 //ASSERT(size < 4); lxq test
-
-                A[size] = supportA;
-                B[size] = supportB;
                 Q[size++] = support;
 
                 //calculate the closest point between two convex hull
-                closest = GJKCPairDoSimplex(Q, A, B, support, ref size);
+                closest = GJKCPairDoSimplex(Q, support, ref size);
                 sDist = Vector3.Dot(closest, closest);
 
                 bCon = minDist > sDist;
@@ -551,22 +517,35 @@ using UnityEngine;
             normal = nor;
             //lambda = (_lambda > 0) ? _lambda - 0.01f : _lambda;
             lambda = _lambda;
-            StartSolid = _StartSolid;
 
-            if(StartSolid)
+            float offset = 0.001f / Vector3.Dot(nor, r);
+            lambda -= offset;
+            if (lambda < 0) lambda = 0;
+
+            StartSolid = false;
+            if(_StartSolid)
             {
-                int c = 0;
+                GJKType ret = gjkLocalPenetration(a, b, ref normal, ref lambda);
+                if (ret == GJKType.EPA_CONTACT)
+                    StartSolid = true;
+                else
+                {
+                    //UEEditTextFile file = new UEEditTextFile(System.Text.Encoding.Unicode);
+                    //if (!file.OpenWrite("convex.txt", OPEN_MODE.OPEN_WRITE_CREATE))
+                    //{
+                    //    file.Close();
+                    //}
+                    //a.EditSave(file);
+                    //b.EditSave(file);
+                    //file.Close();
+                    lambda -= 0.001f;
+                    if (lambda > 0) lambda = 0;
+                }
             }
-            //Vector3 closestP = bCon ? closest : prevClosest;
-            //Vector3 closA = Vector3.zero;
-            //Vector3 closB = Vector3.zero;
-            //getClosestPoint(Q, A, B, closestP, closA, closB, size);
-            //closestA = aQuadratic ? closA - nor * a.getMargin() : closA;  
-
 
             return true;
         }
-       
+
         public enum GJKType
         {
             GJK_CONTACT,
@@ -574,49 +553,47 @@ using UnityEngine;
             GJK_DEGENERATE,
             EPA_CONTACT,
         }
-        
+
         static float GJK_RELATIVE_EPSILON = 0.0004f;//square of 2%.
         //ML: if we are using gjk local which means one of the object will be sphere/capsule, in that case, if we define takeCoreShape is true, we just need to return the closest point as the sphere center or a point in the capsule segment. This will increase the stability
         //for the manifold recycling code
-        public static GJKType gjkLocalPenetration(CAPSULE a, ConvexData b, float _contactDist, ref Vector3 normal, ref float penetrationDepth)
+        public static GJKType gjkLocalPenetration(CAPSULE a, ConvexData b, ref Vector3 normal, ref float penetrationDepth)
         {
-            float contactDist = _contactDist;
-        
             float marginA = a.getMargin();
             float marginB = 0;//b.getMargin();
 
-            float minMargin = 0;// Mathf.Min(a.getMinMargin(), b.getMinMargin());
-            float _eps2 = (minMargin* (0.1f));
+            //float minMargin = 0;// Mathf.Min(a.getMinMargin(), b.getMinMargin());
+            //float _eps2 = (minMargin * (0.1f));
             //ML: eps2 is the threshold that uses to detemine whether two (shrunk) shapes overlap. We calculate eps2 based on 10% of the minimum margin of two shapes
-            float eps2 = (_eps2* _eps2);
+            float eps2 = 0;// (_eps2 * _eps2);
             //ML: epsRel2 is the square of 1.5%. This is used to scale the the sqaure distance of a closet point to origin to detemine whether two shrunk shapes overlap in the margin, but
             //they don't overlap.
             float epsRel2 = GJK_RELATIVE_EPSILON;
-        
+
             float sumOrignalMargin = marginA + marginB;
 
             float sDist = float.MaxValue;
-            float minDist= sDist;
+            float minDist = sDist;
 
             bool bNotTerminated = true;
             bool bCon = true;
             Vector3 closest;
 
-            Vector3 supportA = Vector3.zero, supportB = Vector3.zero, support=Vector3.zero;
+            Vector3 supportA = Vector3.zero, supportB = Vector3.zero, support = Vector3.zero;
 
-            int size = 0;//_size;
+            int size = 0;
 
-            Vector3 _initialSearchDir = a.Center - b.GetCenter();
+            Vector3 _initialSearchDir = a.Center - b.GetAABB().Center;
             closest = Vector3.Dot(_initialSearchDir, _initialSearchDir) > 0 ? _initialSearchDir : Vector3.right;
 
             Vector3 prevClosest = closest;
-        
+
             // ML : termination condition
             //(1)two (shrunk)shapes overlap. GJK will terminate based on sq(v) < eps2 and indicate that two shapes are overlapping.
             //(2)two (shrunk + margin)shapes separate. If sq(vw) > sqMargin * sq(v), which means the original objects do not intesect, GJK terminate with GJK_NON_INTERSECT. 
             //(3)two (shrunk) shapes don't overlap. However, they interect within margin distance. if sq(v)- vw < epsRel2*sq(v), this means the shrunk shapes interect in the margin, 
             //   GJK terminate with GJK_CONTACT.
-            while(bNotTerminated)
+            while (bNotTerminated)
             {
                 //minDist, tempClosA, tempClosB are used to store the previous iteration's closest points(in A and B space) and the square distance from the closest point
                 //to origin in Mincowski space
@@ -625,8 +602,7 @@ using UnityEngine;
 
                 supportA = a.supportSweepLocal(-closest);
                 supportB = b.supportSweepLocal(closest);
-            
-        
+
                 //calculate the support point
                 support = supportA - supportB;
                 Q[size] = support;
@@ -635,30 +611,26 @@ using UnityEngine;
                 //therefore, we need to take the largest of these 2 values into account so that we don't incorrectly declare shapes to be disjoint. If we don't do this, there is
                 //an inherent inconsistency between fallback SAT tests and GJK tests that may result in popping due to SAT discovering deep penetrations that were not detected by
                 //GJK operating on a shrunk shape.
-                //float maxMarginDif = Mathf.Max(a.getMarginDif(), b.getMarginDif()); //test lxq
-                contactDist = 0;//Mathf.Max(contactDist, maxMarginDif);
-                //contactDist = FSel(FIsGrtr(contactDist, maxMarginDif), contactDist, maxMarginDif); 
-                float sumMargin = sumOrignalMargin + contactDist;
-                float sqMargin = (sumMargin* sumMargin);
+                float sqMargin = (sumOrignalMargin * sumOrignalMargin);
 
                 float vw = Vector3.Dot(closest, support);
 
-                bool con = (vw > 0) && (vw* vw > sDist* sqMargin);//this is the non intersect condition
+                bool con = (vw > 0) && (vw * vw > sDist * sqMargin);//this is the non intersect condition
                 bool conGrtr = (epsRel2 * sDist) >= (sDist - vw);//this is the margin intersect condition
                 bool conOrconGrtr = con || conGrtr;
 
-                if(conOrconGrtr)
+                if (conOrconGrtr)
                 {
-                    if(!con) //must be true otherwise we wouldn't be in here...
+                    if (!con) //must be true otherwise we wouldn't be in here...
                     {
                         float dist = Mathf.Sqrt(sDist);
                         //PX_ASSERT(FAllGrtr(dist, FEps));
                         Vector3 n = closest / dist;//normalise
-                        normal = n; 
+                        normal = n;
                         penetrationDepth = dist - sumOrignalMargin;
 
                         return GJKType.GJK_CONTACT;
-                    
+
                     }
                     else
                     {
@@ -670,7 +642,7 @@ using UnityEngine;
                 //PX_ASSERT(size <= 4);
 
                 //calculate the closest point between two convex hull
-                closest = GJKCPairDoSimplex(Q, A, B, support, ref size);
+                closest = GJKCPairDoSimplex(Q, support, ref size);
 
                 sDist = Vector3.Dot(closest, closest);
 
@@ -678,12 +650,11 @@ using UnityEngine;
                 bNotTerminated = sDist > eps2 && bCon;
             }
 
-            if(!bCon)
+            if (!bCon)
             {
                 sDist = minDist;
 
-                float sumExpandedMargin = (sumOrignalMargin + contactDist);
-                float sqExpandedMargin = sumExpandedMargin * sumExpandedMargin;
+                float sqExpandedMargin = sumOrignalMargin * sumOrignalMargin;
                 //Reset back to older closest point
                 closest = prevClosest;//V3Sub(closA, closB);
                 sDist = minDist;
@@ -693,20 +664,24 @@ using UnityEngine;
                 Vector3 n = closest / dist;//normalise
 
                 penetrationDepth = dist - sumOrignalMargin;
-            
+
                 normal = n;
-                if(sqExpandedMargin >= sDist)
+                if (sqExpandedMargin >= sDist)
                 {
-                    return GJKType.GJK_CONTACT;  
+                    return GJKType.GJK_CONTACT;
                 }
-                return GJKType.GJK_DEGENERATE;  
+
+                //此时明明没有碰撞，但是误差导致的碰撞，向法线方向移动0.001f
+                penetrationDepth = -0.001f;
+                return GJKType.GJK_DEGENERATE;
 
             }
-            else 
+            else
             {
                 //this two shapes are deeply intersected with each other, we need to use EPA algorithm to calculate MTD
                 return GJKType.EPA_CONTACT;
             }
         }
     }
+}
 

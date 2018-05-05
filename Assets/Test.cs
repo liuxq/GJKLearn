@@ -31,9 +31,9 @@ public class Test : MonoBehaviour {
         cd.Verts.Add(new Vector3(15.72883f, 27.02312f, -150.2921f));
 
 
-        
-        
-        cap.Center = new Vector3(3.174698f, 26.31351f, -3.662457f);
+
+
+        cap.Center = new Vector3(7.82199f, 27.9242f, -147.459f);
         //cap.Center = new Vector3(3.14838171f, 26.36351f, -3.66289163f);
         cap.HalfLen = 0.7f;
         cap.Radius = 0.2f;
@@ -51,9 +51,9 @@ public class Test : MonoBehaviour {
             Vector3 delta = new Vector3(0, -0.08f, 0);
 
             bool startSolid = false;
-            bool ret = GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid);
+            //bool ret = GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid);
 
-            //GJKRaycast.GJKType ret = GJKRaycast.gjkLocalPenetration(cap, cd, 0, ref normal, ref lambda);
+            GJKRaycast.GJKType ret = GJKRaycast.gjkLocalPenetration(cap, cd, 0, ref normal, ref lambda);
             Debug.Log("result:" + ret);
             Debug.Log("normal:" + normal);
             Debug.Log("lambda:" + lambda);
