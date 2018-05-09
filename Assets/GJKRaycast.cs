@@ -417,7 +417,7 @@ namespace UEEngine
             Vector3 x = r * _lambda;
             int size = 1;
 
-            Vector3 dir = a.Center - b.GetAABB().Center;
+            Vector3 dir = a.Center - b.GetCenter();
             Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps) ? dir : Vector3.right;
             Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
 
@@ -515,9 +515,8 @@ namespace UEEngine
             nor = ((sDist > eps2) && bCon) ? closest : nor;
             nor = Vector3.Normalize(nor);
             normal = nor;
-            //lambda = (_lambda > 0) ? _lambda - 0.01f : _lambda;
-            lambda = _lambda;
 
+            lambda = _lambda;
             float offset = 0.001f / Vector3.Dot(nor, r);
             lambda -= offset;
             if (lambda < 0) lambda = 0;
@@ -583,7 +582,7 @@ namespace UEEngine
 
             int size = 0;
 
-            Vector3 _initialSearchDir = a.Center - b.GetAABB().Center;
+            Vector3 _initialSearchDir = a.Center - b.GetCenter();
             closest = Vector3.Dot(_initialSearchDir, _initialSearchDir) > 0 ? _initialSearchDir : Vector3.right;
 
             Vector3 prevClosest = closest;

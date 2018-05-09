@@ -88,6 +88,7 @@
     <Compile Include="Assets\GJKRaycast.cs" />
     <Compile Include="Assets\Geometry.cs" />
     <Compile Include="Assets\Test.cs" />
+    <Compile Include="Assets\moveScript.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath)\SyntaxTree\UnityVS\2013\UnityVS.CSharp.targets" />
 </Project>

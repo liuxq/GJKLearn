@@ -53,7 +53,7 @@ public class Test : MonoBehaviour {
             bool startSolid = false;
             //bool ret = GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid);
 
-            GJKRaycast.GJKType ret = GJKRaycast.gjkLocalPenetration(cap, cd, 0, ref normal, ref lambda);
+            UEEngine.GJKRaycast.GJKType ret = UEEngine.GJKRaycast.gjkLocalPenetration(cap, cd, ref normal, ref lambda);
             Debug.Log("result:" + ret);
             Debug.Log("normal:" + normal);
             Debug.Log("lambda:" + lambda);
