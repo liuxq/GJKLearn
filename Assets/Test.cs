@@ -51,12 +51,17 @@ public class Test : MonoBehaviour {
             Vector3 delta = new Vector3(0, -0.08f, 0);
 
             bool startSolid = false;
-            //bool ret = GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid);
-
-            UEEngine.GJKRaycast.GJKType ret = UEEngine.GJKRaycast.gjkLocalPenetration(cap, cd, ref normal, ref lambda);
+            Vector3 ClosetA = Vector3.zero;
+            bool ret = UEEngine.GJKRaycast._gjkLocalRayCast(cap, cd, delta, ref lambda, ref normal, ref startSolid, ref ClosetA);
             Debug.Log("result:" + ret);
             Debug.Log("normal:" + normal);
             Debug.Log("lambda:" + lambda);
+            Debug.Log("startSolid:" + startSolid);
+
+            if(ret)
+            {
+                GameObject.Find("Close").transform.position = ClosetA;
+            }
         }
 
         if (GUILayout.Button("Show Convex"))
