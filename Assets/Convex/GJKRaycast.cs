@@ -10,8 +10,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace UEEngine
-{
+ 
+
     struct BoolV4
     {
         public bool x;
@@ -37,6 +37,14 @@ namespace UEEngine
             y = 1;
             z = 2;
         }
+    }
+
+    public struct CollidePoints
+    {
+        public int size;
+        public int a;
+        public int b;
+        public int c;
     }
 
     public class GJKRaycast
@@ -207,13 +215,9 @@ namespace UEEngine
             if (_size != 3)
             {
                 Vector3 q0 = Q[indices.x]; Vector3 q1 = Q[indices.y];
-
-                Vector3 a0 = A[indices.x]; Vector3 a1 = A[indices.y];
-                Vector3 b0 = B[indices.x]; Vector3 b1 = B[indices.y];
+                int b0 = B[indices.x]; int b1 = B[indices.y];
 
                 Q[0] = q0; Q[1] = q1;
-
-                A[0] = a0; A[1] = a1;
                 B[0] = b0; B[1] = b1;
 
                 size = _size;
@@ -378,12 +382,8 @@ namespace UEEngine
             Vector3 closest = getClosestPtPointTriangle(bIsOutside4, ref indices, ref  size);
 
             Vector3 q0 = Q[indices.x]; Vector3 q1 = Q[indices.y]; Vector3 q2 = Q[indices.z];
-
-            Vector3 a0 = A[indices.x]; Vector3 a1 = A[indices.y]; Vector3 a2 = A[indices.z];
-            Vector3 b0 = B[indices.x]; Vector3 b1 = B[indices.y]; Vector3 b2 = B[indices.z];
+            int b0 = B[indices.x]; int b1 = B[indices.y]; int b2 = B[indices.z];
             Q[0] = q0; Q[1] = q1; Q[2] = q2;
-
-            A[0] = a0; A[1] = a1; A[2] = a2;
             B[0] = b0; B[1] = b1; B[2] = b2;
 
             return closest;
@@ -417,8 +417,7 @@ namespace UEEngine
         static float FEps = 0.0001f;
 
         static Vector3[] Q = new Vector3[4]; //simplex set
-        static Vector3[] A = new Vector3[4]; //ConvexHull a simplex set
-        static Vector3[] B = new Vector3[4]; //ConvexHull b simplex set
+        static int[] B = new int[4]; //ConvexHull b simplex set
 
         static void barycentricCoordinates(Vector3 p, Vector3 a, Vector3 b, ref float v)
         {
@@ -454,46 +453,48 @@ namespace UEEngine
         }
 
 
-        static void getClosestPoint(Vector3 closest, int size, ref Vector3 closestA, ref Vector3 closestB)
-    	{
-    		switch(size)
-    		{
-    		case 1:
-    			{
-    				closestA = A[0];
-    				closestB = B[0];
-    				break;
-    			}
-    		case 2:
-    			{
-    				float v = 0;
-    				barycentricCoordinates(closest, Q[0], Q[1], ref v);
-    				Vector3 av = A[1] - A[0];
-    				Vector3 bv = B[1] - B[0];
-    				closestA = av * v + A[0];
-    				closestB = bv * v + B[0];
+        //static void getClosestPoint(Vector3 closest, int size, ref Vector3 closestA, ref Vector3 closestB)
+        //{
+        //    switch(size)
+        //    {
+        //    case 1:
+        //        {
+        //            closestA = A[0];
+        //            closestB = B[0];
+        //            break;
+        //        }
+        //    case 2:
+        //        {
+        //            float v = 0;
+        //            barycentricCoordinates(closest, Q[0], Q[1], ref v);
+        //            Vector3 av = A[1] - A[0];
+        //            Vector3 bv = B[1] - B[0];
+        //            closestA = av * v + A[0];
+        //            closestB = bv * v + B[0];
     				
-    				break;
-    			}
-    		case 3:
-    			{
-    				//calculate the Barycentric of closest point p in the mincowsky sum
-    				float v = 0, w = 0;
-    				barycentricCoordinates(closest, Q[0], Q[1], Q[2], ref v, ref w);
+        //            break;
+        //        }
+        //    case 3:
+        //        {
+        //            //calculate the Barycentric of closest point p in the mincowsky sum
+        //            float v = 0, w = 0;
+        //            barycentricCoordinates(closest, Q[0], Q[1], Q[2], ref v, ref w);
 
-    				Vector3 av0 = A[1] - A[0];
-    				Vector3 av1 = A[2] - A[0];
-    				Vector3 bv0 = B[1] - B[0];
-    				Vector3 bv1 = B[2] - B[0];
+        //            Vector3 av0 = A[1] - A[0];
+        //            Vector3 av1 = A[2] - A[0];
+        //            Vector3 bv0 = B[1] - B[0];
+        //            Vector3 bv1 = B[2] - B[0];
 
-    				closestA = A[0] + (av0 * v + av1 * w);
-    				closestB = B[0] + (bv0 * v + bv1 * w);
-                    break;
-    			}
-    		};
-    	}
+        //            closestA = A[0] + (av0 * v + av1 * w);
+        //            closestB = B[0] + (bv0 * v + bv1 * w);
+        //            break;
+        //        }
+        //    };
+        //}
 
-        static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid, ref Vector3 CloseA)
+        
+
+        static public bool _gjkLocalRayCast(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid, ref CollidePoints points)
         {
             bool _StartSolid = true;
             float inflation = a.Radius;
@@ -505,16 +506,16 @@ namespace UEEngine
             Vector3 x = r * _lambda;
             int size = 1;
 
-            Vector3 dir = a.Center - b.GetCenter();
+            Vector3 dir = a.Center - b.GetAABB().Center;
             Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps) ? dir : Vector3.right;
             Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
 
+            int bIndex = 0;
             Vector3 initialSupportA = a.supportSweepLocal(-initialSearchDir);
-            Vector3 initialSupportB = b.supportSweepLocal(initialSearchDir);
+            Vector3 initialSupportB = b.supportSweepLocal(initialSearchDir, ref bIndex);
 
             Q[0] = initialSupportA - initialSupportB; Q[1] = Vector3.zero; Q[2] = Vector3.zero; Q[3] = Vector3.zero; //simplex set
-            A[0] = initialSupportA;                   A[1] = Vector3.zero; A[2] = Vector3.zero; A[3] = Vector3.zero; //ConvexHull a simplex set
-            B[0] = initialSupportB;                   B[1] = Vector3.zero; B[2] = Vector3.zero; B[3] = Vector3.zero; //ConvexHull b simplex set
+            B[0] = bIndex; B[1] = 0; B[2] = 0; B[3] = 0; //ConvexHull b simplex set
 
             Vector3 closest = Q[0];
             Vector3 supportA = initialSupportA;
@@ -545,7 +546,7 @@ namespace UEEngine
                 Vector3 vNorm = -Vector3.Normalize(closest);
 
                 supportA = a.supportSweepLocal(vNorm);
-                supportB = x + b.supportSweepLocal(-vNorm);
+                supportB = x + b.supportSweepLocal(-vNorm, ref bIndex);
 
                 //calculate the support point
                 support = supportA - supportB;
@@ -573,9 +574,6 @@ namespace UEEngine
                             x = r * _lambda;
 
                             Vector3 offSet = x - bPreCenter;
-                            B[0] += offSet;
-                            B[1] += offSet;
-                            B[2] += offSet;
                             Q[0] -= offSet;
                             Q[1] -= offSet;
                             Q[2] -= offSet;
@@ -590,9 +588,7 @@ namespace UEEngine
                 }
 
                 //ASSERT(size < 4); lxq test
-
-                A[size] = supportA;
-                B[size] = supportB;
+                B[size] = bIndex;
                 Q[size++] = support;
 
                 //calculate the closest point between two convex hull
@@ -612,19 +608,24 @@ namespace UEEngine
             normal = nor;
 
             lambda = _lambda;
-            float offset = 0.001f / Vector3.Dot(nor, r);
+            float cosAngle = Vector3.Dot(nor, r);
+            float offset = 0.001f / cosAngle;
             lambda -= offset;
-            if (lambda < 0) lambda = 0;
+            if (lambda < 0)
+            {
+                //lambda *= cosAngle;
+                lambda = 0;
+            }
 
-            Vector3 closestP = bCon ? closest : prevClosest;
-            Vector3 closA = Vector3.zero, closB = Vector3.zero;
-            getClosestPoint(closestP, size, ref closA, ref closB);
-            CloseA = closA - nor * a.Radius;
+            points.size = size;
+            points.a = B[0];
+            points.b = B[1];
+            points.c = B[2];
 
             StartSolid = false;
             if(_StartSolid)
             {
-                GJKType ret = gjkLocalPenetration(a, b, ref normal, ref lambda, ref CloseA);
+                GJKType ret = gjkLocalPenetration(a, b, ref normal, ref lambda, ref points);
                 if (ret == GJKType.EPA_CONTACT)
                     StartSolid = true;
                 else
@@ -658,7 +659,7 @@ namespace UEEngine
         static float GJK_RELATIVE_EPSILON = 0.0004f;//square of 2%.
         //ML: if we are using gjk local which means one of the object will be sphere/capsule, in that case, if we define takeCoreShape is true, we just need to return the closest point as the sphere center or a point in the capsule segment. This will increase the stability
         //for the manifold recycling code
-        public static GJKType gjkLocalPenetration(CAPSULE a, ConvexData b, ref Vector3 normal, ref float penetrationDepth, ref Vector3 ClosetA)
+        public static GJKType gjkLocalPenetration(CAPSULE a, ConvexData b, ref Vector3 normal, ref float penetrationDepth, ref CollidePoints points)
         {
             float marginA = a.getMargin();
             float marginB = 0;//b.getMargin();
@@ -684,11 +685,12 @@ namespace UEEngine
 
             int size = 0;
 
-            Vector3 _initialSearchDir = a.Center - b.GetCenter();
+            Vector3 _initialSearchDir = a.Center - b.GetAABB().Center;
             closest = Vector3.Dot(_initialSearchDir, _initialSearchDir) > 0 ? _initialSearchDir : Vector3.right;
 
             Vector3 prevClosest = closest;
 
+            int bIndex = 0;
             // ML : termination condition
             //(1)two (shrunk)shapes overlap. GJK will terminate based on sq(v) < eps2 and indicate that two shapes are overlapping.
             //(2)two (shrunk + margin)shapes separate. If sq(vw) > sqMargin * sq(v), which means the original objects do not intesect, GJK terminate with GJK_NON_INTERSECT. 
@@ -702,11 +704,12 @@ namespace UEEngine
                 prevClosest = closest;
 
                 supportA = a.supportSweepLocal(-closest);
-                supportB = b.supportSweepLocal(closest);
+                supportB = b.supportSweepLocal(closest, ref bIndex);
 
                 //calculate the support point
                 support = supportA - supportB;
                 Q[size] = support;
+                B[size] = bIndex;
 
                 //ML: because we shrink the shapes by plane shifting(box and convexhull), the distance from the "shrunk" vertices to the original vertices may be larger than contact distance. 
                 //therefore, we need to take the largest of these 2 values into account so that we don't incorrectly declare shapes to be disjoint. If we don't do this, there is
@@ -730,9 +733,10 @@ namespace UEEngine
                         normal = n;
                         penetrationDepth = dist - sumOrignalMargin;
 
-                        Vector3 closA = Vector3.zero, closB = Vector3.zero;
-                        getClosestPoint(closest, size, ref closA, ref closB);
-                        ClosetA = closA - n * marginA;
+                        points.size = size;
+                        points.a = B[0];
+                        points.b = B[1];
+                        points.c = B[2];
 
                         return GJKType.GJK_CONTACT;
 
@@ -762,11 +766,6 @@ namespace UEEngine
                 float sqExpandedMargin = sumOrignalMargin * sumOrignalMargin;
                 //Reset back to older closest point
                 closest = prevClosest;//closA, closB ;
-
-                Vector3 closA = Vector3.zero, closB = Vector3.zero;
-                getClosestPoint(closest, size, ref closA, ref closB);
-                
-
                 sDist = minDist;
 
                 float dist = Mathf.Sqrt(sDist);
@@ -777,7 +776,10 @@ namespace UEEngine
 
                 normal = n;
 
-                ClosetA = closA - n * marginA;
+                points.size = size;
+                points.a = B[0];
+                points.b = B[1];
+                points.c = B[2];
 
                 if (sqExpandedMargin >= sDist)
                 {
@@ -796,5 +798,5 @@ namespace UEEngine
             }
         }
     }
-}
+
 
