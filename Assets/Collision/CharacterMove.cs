@@ -19,9 +19,14 @@ public class CharacterMove : MonoBehaviour {
 	void Update () {
         float v = Input.GetAxis("Vertical");
         float h = Input.GetAxis("Horizontal");
-		if(v > 0 || h > 0)
+		if(v != 0 || h != 0)
         {
-            transform.position = GroundMove(new Vector3(h,0,v), 5f, (uint)(Time.deltaTime * 1000));
+            Vector3 forward = Camera.main.transform.forward;
+            Vector3 right = Camera.main.transform.right;
+            Vector3 dir = forward * v + right * h;
+            dir.y = 0;
+            dir = dir.normalized;
+            transform.position = GroundMove(new Vector3(dir.x, 0, dir.z), 5f, (uint)(Time.deltaTime * 1000));
         }
 	}
 

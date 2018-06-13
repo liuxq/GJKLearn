@@ -64,14 +64,14 @@ public class UECollisionMan : MonoBehaviour
 
 public class UECollisioinTreeNode
 {
-    public AABB AABB { get; set; }
+    public Bounds AABB;
     public List<CDBrush> LstCDBrush { get; set; }
     public UECollisioinTreeNode[] Children { get; set; }
     public bool Used { get; set; }
 
     public UECollisioinTreeNode()
     {
-        AABB = new AABB();
+        AABB = new Bounds();
         AABB.Clear();
         LstCDBrush = new List<CDBrush>();
         Children = new UECollisioinTreeNode[8];
@@ -104,7 +104,7 @@ public class UECollisionTree
     private int _MinBrushInNode;
     private float _MinNodeSize;
 
-    public AABB AABB
+    public Bounds AABB
     {
         get { return _Root.AABB; }
     }
@@ -122,7 +122,7 @@ public class UECollisionTree
     public void AddCDBrush(List<CDBrush> brushs)
     {
         int all = brushs.Count;
-        AABB aabb = _Root.AABB;
+        Bounds aabb = _Root.AABB;
         for (int i = 0; i < all; ++i)
         {
             aabb.Merge(brushs[i].BoundAABB);
@@ -158,7 +158,7 @@ public class UECollisionTree
         _MinNodeSize = minnodesize;
         _Root = new UECollisioinTreeNode();
 
-        AABB aabb = _Root.AABB;// new AABB();
+        Bounds aabb = _Root.AABB;// new AABB();
         //aabb.Clear();
 
         int all = brushs.Count;
@@ -245,20 +245,19 @@ public class UECollisionTree
         int nBrushes = pNode.LstCDBrush.Count;
 	    if (nBrushes < _MinBrushInNode)
 		    return;
-	    if (pNode.AABB.Extents.x * 2 < _MinNodeSize + 0.1f)
+	    if (pNode.AABB.extents.x * 2 < _MinNodeSize + 0.1f)
 		    return;
 
-	    Vector3 child_ext = pNode.AABB.Extents * 0.5f;
-	    float[] candidatex = new float[]{pNode.AABB.Center.x - child_ext.x, pNode.AABB.Center.x + child_ext.x};
-	    float[] candidatey = new float[]{pNode.AABB.Center.y - child_ext.y, pNode.AABB.Center.y + child_ext.y};
-	    float[] candidatez = new float[]{pNode.AABB.Center.z - child_ext.z, pNode.AABB.Center.z + child_ext.z};
+	    Vector3 child_ext = pNode.AABB.extents * 0.5f;
+	    float[] candidatex = new float[]{pNode.AABB.center.x - child_ext.x, pNode.AABB.center.x + child_ext.x};
+	    float[] candidatey = new float[]{pNode.AABB.center.y - child_ext.y, pNode.AABB.center.y + child_ext.y};
+	    float[] candidatez = new float[]{pNode.AABB.center.z - child_ext.z, pNode.AABB.center.z + child_ext.z};
 
 	    for (int i = 0; i < 8; ++i)
 	    {
 		    pNode.Children[i] = new UECollisioinTreeNode();
-		    pNode.Children[i].AABB.Center = new Vector3(candidatex[i&1], candidatey[(i&2)>>1], candidatez[(i&4)>>2]);
-		    pNode.Children[i].AABB.Extents = child_ext;
-		    pNode.Children[i].AABB.CompleteMinsMaxs();
+		    pNode.Children[i].AABB.center = new Vector3(candidatex[i&1], candidatey[(i&2)>>1], candidatez[(i&4)>>2]);
+		    pNode.Children[i].AABB.extents = child_ext;
 
 		    //divide brushes into child node
 		    for (int j = 0; j < nBrushes; ++j)
@@ -281,7 +280,7 @@ public class UECollisionTree
             return false;
         }
 
-        if (!UECollisionUtil.AABBAABBOverlap(pNode.AABB.Center, pNode.AABB.Extents, pInfo.Bound.Center, pInfo.Bound.Extents))
+        if (!UECollisionUtil.AABBAABBOverlap(pNode.AABB.center, pNode.AABB.extents, pInfo.Bound.center, pInfo.Bound.extents))
         {
             return false;
         }

@@ -109,22 +109,22 @@ using System.Collections;
             return val;
         }
 
-        public static void SaveAABB(UEBinaryFile fs, AABB aabb)
+        public static void SaveAABB(UEBinaryFile fs, Bounds aabb)
         {
             if (fs == null || fs.Writer == null)
                 return;
 
-            fs.Writer.Write(aabb.Center.x);
-            fs.Writer.Write(aabb.Center.y);
-            fs.Writer.Write(aabb.Center.z);
-            fs.Writer.Write(aabb.Extents.x);
-            fs.Writer.Write(aabb.Extents.y);
-            fs.Writer.Write(aabb.Extents.z);
+            fs.Writer.Write(aabb.center.x);
+            fs.Writer.Write(aabb.center.y);
+            fs.Writer.Write(aabb.center.z);
+            fs.Writer.Write(aabb.extents.x);
+            fs.Writer.Write(aabb.extents.y);
+            fs.Writer.Write(aabb.extents.z);
         }
 
-        public static AABB LoadAABB(UEBinaryFile fs)
+        public static Bounds LoadAABB(UEBinaryFile fs)
         {
-            AABB aabb = new AABB();
+            Bounds aabb = new Bounds();
             if (fs == null || fs.Reader == null)
                 return aabb;
 
@@ -137,9 +137,8 @@ using System.Collections;
             extents.x = fs.Reader.ReadSingle();
             extents.y = fs.Reader.ReadSingle();
             extents.z = fs.Reader.ReadSingle();
-            aabb.Center = center;
-            aabb.Extents = extents;
-            aabb.CompleteMinsMaxs();
+            aabb.center = center;
+            aabb.extents = extents;
             return aabb;
         }
 

@@ -18,7 +18,7 @@ using UnityEngine;
         public Vector3 Start;			//	Start point
         public Vector3 Delta;			//	Move delta
         public Vector3 Extents;
-        public AABB Bound = new AABB();
+        public Bounds Bound = new Bounds();
         // Dist Epsilon
         public uint ChkFlags;		//  for details refer to CConvexBrush::BrushTrace() in ConvexBrush.h
         public float Epsilon;	//	Dist Epsilon
@@ -73,21 +73,20 @@ using UnityEngine;
             if (IsPoint)
             {
                 Extents = Vector3.zero;
-                Bound.AddVertex(start);
-                Bound.AddVertex(start + delta);
+                Bound.Encapsulate(start);
+                Bound.Encapsulate(start + delta);
                 Epsilon = 1E-5f;
             }
             else
             {
-                Bound.AddVertex(start);
-                Bound.AddVertex(start + extents);
-                Bound.AddVertex(start - extents);
-                Bound.AddVertex(start + delta);
-                Bound.AddVertex(start + delta + extents);
-                Bound.AddVertex(start + delta - extents);
-                Bound.Extend(Epsilon);
+                Bound.Encapsulate(start);
+                Bound.Encapsulate(start + extents);
+                Bound.Encapsulate(start - extents);
+                Bound.Encapsulate(start + delta);
+                Bound.Encapsulate(start + delta + extents);
+                Bound.Encapsulate(start + delta - extents);
+                Bound.Expand(Epsilon);
             }
-            Bound.CompleteCenterExts();
         }
 
         public bool HasClipPlane()
@@ -116,14 +115,14 @@ using UnityEngine;
             x = ClipPlane.Normal.x; y = ClipPlane.Normal.y; z = ClipPlane.Normal.z;
         }
 
-        public static bool RayAABBCollision(BrushTraceInfo pInfo, AABB aabb)
+        public static bool RayAABBCollision(BrushTraceInfo pInfo, Bounds aabb)
         {
             Vector3 p1 = pInfo.Start;
             Vector3 p2 = pInfo.Start + pInfo.Delta;
 
-            float left = aabb.Mins.x - pInfo.Epsilon, right = aabb.Maxs.x + pInfo.Epsilon;
-            float front = aabb.Mins.z - pInfo.Epsilon, back = aabb.Maxs.z + pInfo.Epsilon;
-            float top = aabb.Maxs.y + pInfo.Epsilon, bottom = aabb.Mins.y - pInfo.Epsilon;
+            float left = aabb.min.x - pInfo.Epsilon, right = aabb.max.x + pInfo.Epsilon;
+            float front = aabb.min.z - pInfo.Epsilon, back = aabb.max.z + pInfo.Epsilon;
+            float top = aabb.max.y + pInfo.Epsilon, bottom = aabb.min.y - pInfo.Epsilon;
 	        if ((p1.x > right && p2.x > right) || (p1.x < left && p2.x < left)
 		        ||(p1.y > top && p2.y > top) || (p1.y < bottom && p2.y < bottom)
 		        ||(p1.z > back && p2.z > back) || (p1.z < front && p2.z < front))
@@ -161,7 +160,7 @@ using UnityEngine;
         //////////////////////////////////////////////////////////////////////////
         public CAPSULE Start;			//	Start Capsule
         public Vector3 Delta;			//	Move delta
-        public AABB Bound = new AABB();
+        public Bounds Bound = new Bounds();
         // Dist Epsilon
         public uint ChkFlags;		//  for details refer to CConvexBrush::BrushTrace() in ConvexBrush.h
         public float Epsilon;	//	Dist Epsilon
@@ -204,14 +203,12 @@ using UnityEngine;
             HitFlags = 0u;
 
             Bound.Clear();
-            Bound.AddVertex(Start.Center - Vector3.up * Start.HalfLen);
-            Bound.AddVertex(Start.Center + Vector3.up * Start.HalfLen);
-            Bound.AddVertex(Start.Center - Vector3.up * Start.HalfLen + Delta);
-            Bound.AddVertex(Start.Center + Vector3.up * Start.HalfLen + Delta);
-            Bound.Extend(Start.Radius);
-            Bound.Extend(Epsilon);
-            
-            Bound.CompleteCenterExts();
+            Bound.Encapsulate(Start.Center - Vector3.up * Start.HalfLen);
+            Bound.Encapsulate(Start.Center + Vector3.up * Start.HalfLen);
+            Bound.Encapsulate(Start.Center - Vector3.up * Start.HalfLen + Delta);
+            Bound.Encapsulate(Start.Center + Vector3.up * Start.HalfLen + Delta);
+            Bound.Expand(Start.Radius);
+            Bound.Expand(Epsilon);
         }
     }
 
@@ -249,20 +246,20 @@ using UnityEngine;
     {
         public uint Flags { get; set; }
         public List<CDSide> LstSides { get; set; }
-        public AABB BoundAABB { get; set; }
+        public Bounds BoundAABB { get; set; }
         public ConvexData cd;
 
         // constructor, deconstructor and releaser
         public CDBrush()
         {
-            BoundAABB = new AABB();
+            BoundAABB = new Bounds();
             LstSides = new List<CDSide>();
             Flags = 0;
         }
 
         public CDBrush(CDBrush src)
         {
-            BoundAABB = new AABB(src.BoundAABB);
+            BoundAABB = src.BoundAABB;
             LstSides = new List<CDSide>();
             for (int i = 0; i < src.LstSides.Count; i++)
             {
@@ -331,7 +328,7 @@ using UnityEngine;
 
             bool ret = false;
 
-            if (UECollisionUtil.AABBAABBOverlap(BoundAABB.Center, BoundAABB.Extents, info.Bound.Center, info.Bound.Extents))
+            if (UECollisionUtil.AABBAABBOverlap(BoundAABB.center, BoundAABB.extents, info.Bound.center, info.Bound.extents))
             {
                 ret = GJKRaycast._gjkLocalRayCast(info.Start, this.cd, info.Delta, ref info.Fraction, ref info.Normal, ref info.StartSolid, ref info.HitPoints);
             }
@@ -605,7 +602,7 @@ using UnityEngine;
                 cdBrush.cd = this.CHData;
             }
 
-            AABB tmpAABB;
+            Bounds tmpAABB;
             CHData.GetAABB(out tmpAABB);
             if (tmpAABB != null)
             {

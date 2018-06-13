@@ -4,272 +4,46 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 
- 
 
-    ///////////////////////////////////////////////////////////////////////////
-    //	
-    //	Class AABB
-    //	
-    ///////////////////////////////////////////////////////////////////////////
-    public class AABB
+public static class BoundsExtansions
+{
+    public static void Clear(this Bounds aabb)
     {
-        public static float Epsilon = 1E-4f;
-        private Vector3 mCenter;
-        private Vector3 mExtents;
-        private Vector3 mMins;
-        private Vector3 mMaxs;
+        aabb.min = new Vector3(999999f, 999999f, 999999f);
+        aabb.max = new Vector3(-999999f, -999999f, -999999f);
+    }
 
-	    public Vector3 Center
+    //	Merge two aabb
+    public static void Merge(this Bounds aabb, Bounds aabb2)
+    {
+        aabb.Encapsulate(aabb2);
+    }
+
+    //	Check whether a point is in this aabb
+    public static bool IsPointIn(this Bounds aabb, Vector3 v, float offset)
+    {
+        if (v.x > aabb.max.x + offset || v.x < aabb.min.x - offset ||
+            v.y > aabb.max.y + offset || v.y < aabb.min.y - offset ||
+            v.z > aabb.max.z + offset || v.z < aabb.min.z - offset)
         {
-            get { return mCenter; }
-            set { mCenter = value; }
+            return false;
         }
 
-	    public Vector3 Extents
+        return true;
+    }
+
+    //	Build AABB from vertices
+    public static void Build(this Bounds aabb, Vector3[] lstVerPos)
+    {
+        aabb.Clear();
+        for (int i = 0; i < lstVerPos.Length; i++)
         {
-            get { return mExtents; }
-            set { mExtents = value; }
-        }
-
-	    public Vector3 Mins
-        {
-            get { return mMins; }
-        }
-
-	    public Vector3 Maxs
-        {
-            get { return mMaxs; }
-        }
-
-
-        //for Convert to Capsule
-        public float HalfLen
-        {
-            get 
-            {
-                float hl = mExtents.y - Radius;
-                return hl < 0 ? 0 : hl;
-            }
-        }
-
-        public float Radius
-        {
-            get { return Mathf.Max(mExtents.x, mExtents.z); }
-        }
-
-        public AABB() 
-        {
-            mMins.Set(999999.0f, 999999.0f, 999999.0f);
-            mMaxs.Set(-999999.0f, -999999.0f, -999999.0f);
-        }
-
-	    public AABB(AABB aabb)
-        {
-            mCenter = aabb.mCenter;
-            mExtents = aabb.mExtents;
-            mMins = aabb.mMins;
-            mMaxs = aabb.mMaxs;
-        }
-
-	    public AABB(Vector3 mins, Vector3 maxs)
-        {
-            mMins = mins;
-            mMaxs = maxs;
-            mCenter = 0.5f * (mMins + mMaxs);
-            mExtents = mMaxs - mCenter;
-        }
-
-        //	Compute Mins and Maxs
-	    public void CompleteMinsMaxs()
-	    {
-            mMins = mCenter - mExtents;
-		    mMaxs = mCenter + mExtents;
-	    }
-
-        //	Compute Center and Extents
-        public void CompleteCenterExts()
-        {
-            mCenter = (mMins + mMaxs) * 0.5f;
-            mExtents = mMaxs - mCenter;
-        }
-
-        //extend float epsilon
-        public void Extend(float ext)
-        {
-            Vector3 vext = new Vector3(ext, ext, ext);
-            mMins -= vext;
-            mMaxs += vext;
-            CompleteCenterExts();
-        }
-
-        // Clear the aabb
-	    public void Clear()
-	    {
-            mMins.Set(999999.0f, 999999.0f, 999999.0f);
-            mMaxs.Set(-999999.0f, -999999.0f, -999999.0f);
-	    }
-
-        //	Add a vertex to aabb
-	    public void AddVertex(Vector3 v)
-        {
-            mMins.x = (v.x < mMins.x) ? v.x : mMins.x;
-            mMins.y = (v.y < mMins.y) ? v.y : mMins.y;
-            mMins.z = (v.z < mMins.z) ? v.z : mMins.z;
-            mMaxs.x = (v.x > mMaxs.x) ? v.x : mMaxs.x;
-            mMaxs.y = (v.y > mMaxs.y) ? v.y : mMaxs.y;
-            mMaxs.z = (v.z > mMaxs.z) ? v.z : mMaxs.z;
-        }
-
-	    //	Build AABB from obb
-	    public void Build(OBB obb)
-        {
-            Clear();
-            ExpandAABB(ref mMins, ref mMaxs, obb);
-            CompleteCenterExts();
-        }
-
-	    //	Merge two aabb
-	    public void Merge(AABB subaabb)
-        {
-            Merge(subaabb.mMins, subaabb.mMaxs);
-        }
-
-        public void Merge(Vector3 mins, Vector3 maxs)
-        {
-            mMins.x = (mins.x < mMins.x) ? mins.x : mMins.x;
-            mMins.y = (mins.y < mMins.y) ? mins.y : mMins.y;
-            mMins.z = (mins.z < mMins.z) ? mins.z : mMins.z;
-            mMaxs.x = (maxs.x > mMaxs.x) ? maxs.x : mMaxs.x;
-            mMaxs.y = (maxs.y > mMaxs.y) ? maxs.y : mMaxs.y;
-            mMaxs.z = (maxs.z > mMaxs.z) ? maxs.z : mMaxs.z;
-            CompleteCenterExts();
-        }
-
-        public void Reset(AABB aabb)
-        {
-            mCenter = aabb.mCenter;
-            mExtents = aabb.mExtents;
-            mMins = aabb.mMins;
-            mMaxs = aabb.mMaxs;
-        }
-
-	    //	Check whether a point is in this aabb
-	    public bool IsPointIn(Vector3 v)
-	    {
-		    if (v.x > mMaxs.x || v.x < mMins.x ||
-			    v.y > mMaxs.y || v.y < mMins.y ||
-			    v.z > mMaxs.z || v.z < mMins.z)
-            {
-			    return false;
-            }
-
-		    return true;
-	    }
-
-        //	Check whether a point is in this aabb
-        public bool IsPointIn(Vector3 v, float offset)
-        {
-            if (v.x > mMaxs.x + offset || v.x < mMins.x - offset ||
-                v.y > mMaxs.y + offset || v.y < mMins.y - offset ||
-                v.z > mMaxs.z + offset || v.z < mMins.z - offset)
-            {
-                return false;
-            }
-
-            return true;
-        }
-
-	    //	Check whether another aabb is in this aabb
-	    public bool IsAABBIn(AABB aabb)
-        {
-            if (aabb == null)
-                return false;
-
-            Vector3 delta = aabb.mCenter - mCenter;
-
-            delta.x = Mathf.Abs(delta.x);
-            if (delta.x + aabb.mExtents.x > aabb.mExtents.x)
-                return false;
-
-            delta.y = Mathf.Abs(delta.y);
-            if (delta.y + aabb.mExtents.y > aabb.mExtents.y)
-                return false;
-
-            delta.z = Mathf.Abs(delta.z);
-            if (delta.z + aabb.mExtents.z > aabb.mExtents.z)
-                return false;
-
-            return true;
-        }
-
-	    //	Build AABB from vertices
-	    public void Build(Vector3[] lstVerPos)
-        {
-            Clear();
-            for (int i = 0; i < lstVerPos.Length; i++)
-            {
-                mMins.x = (lstVerPos[i].x < mMins.x) ? lstVerPos[i].x : mMins.x;
-                mMins.y = (lstVerPos[i].y < mMins.y) ? lstVerPos[i].y : mMins.y;
-                mMins.z = (lstVerPos[i].z < mMins.z) ? lstVerPos[i].z : mMins.z;
-                mMaxs.x = (lstVerPos[i].x > mMaxs.x) ? lstVerPos[i].x : mMaxs.x;
-                mMaxs.y = (lstVerPos[i].y > mMaxs.y) ? lstVerPos[i].y : mMaxs.y;
-                mMaxs.z = (lstVerPos[i].z > mMaxs.z) ? lstVerPos[i].z : mMaxs.z;
-            }
-            CompleteCenterExts();
-        }
-
-	    //	Get vertices of aabb
-	    public void GetVertices(List<Vector3> lstVertPos, List<short> lstIndices, bool wire)
-        {
-            OBB obb = new OBB();
-
-            obb.Center = mCenter;
-            obb.Extents = mExtents;
-            obb.XAxis = Vector3.right;
-            obb.YAxis = Vector3.up;
-            obb.ZAxis = Vector3.forward;
-            obb.CompleteExtAxis();
-
-            obb.GetVertices(lstVertPos, lstIndices, wire);
-        }
-
-        public static void ExpandAABB(ref Vector3 mins, ref Vector3 maxs, AABB subaabb)
-        {
-            mins.x = (subaabb.mMins.x < mins.x) ? subaabb.mMins.x : mins.x;
-            mins.y = (subaabb.mMins.y < mins.y) ? subaabb.mMins.y : mins.y;
-            mins.z = (subaabb.mMins.z < mins.z) ? subaabb.mMins.z : mins.z;
-            maxs.x = (subaabb.mMaxs.x > maxs.x) ? subaabb.mMaxs.x : maxs.x;
-            maxs.y = (subaabb.mMaxs.y > maxs.y) ? subaabb.mMaxs.y : maxs.y;
-            maxs.z = (subaabb.mMaxs.z > maxs.z) ? subaabb.mMaxs.z : maxs.z;
-        }
-
-        public static void ExpandAABB(ref Vector3 mins, ref Vector3 maxs, OBB obb)
-        {
-	        Vector3[] v = new Vector3[8];
-
-	        // Up 4 corner;
-	        v[0] = obb.Center + obb.ExtY - obb.ExtX + obb.ExtZ;
-	        v[1] = v[0] + obb.ExtX + obb.ExtX;	//	+ obb.ExtX * 2.0f;
-	        v[2] = v[1] - obb.ExtZ - obb.ExtZ;	//	+ obb.ExtZ * (-2.0f);
-	        v[3] = v[2] - obb.ExtX - obb.ExtX;	//	+ obb.ExtX * (-2.0f);
-
-	        //Down 4 corner;
-	        v[4] = obb.Center - obb.ExtY - obb.ExtX + obb.ExtZ;
-	        v[5] = v[4] + obb.ExtX + obb.ExtX;	//	+ obb.ExtX * 2.0f;
-	        v[6] = v[5] - obb.ExtZ - obb.ExtZ;	//	+ obb.ExtZ * (-2.0f);
-	        v[7] = v[6] - obb.ExtX - obb.ExtX;	//	+ obb.ExtX * (-2.0f);
-
-            for (int i = 0; i < 8; i++)
-            {
-                mins.x = (v[i].x < mins.x) ? v[i].x : mins.x;
-                mins.y = (v[i].y < mins.y) ? v[i].y : mins.y;
-                mins.z = (v[i].z < mins.z) ? v[i].z : mins.z;
-                maxs.x = (v[i].x > maxs.x) ? v[i].x : maxs.x;
-                maxs.y = (v[i].y > maxs.y) ? v[i].y : maxs.y;
-                maxs.z = (v[i].z > maxs.z) ? v[i].z : maxs.z;
-            }
+            aabb.Encapsulate(lstVerPos[i]);
         }
     }
+
+}
+   
 
     ///////////////////////////////////////////////////////////////////////////
     //	
@@ -396,13 +170,13 @@ using System.Collections.Generic;
         }
 
         //	Build obb from aabb
-        public void Build(AABB aabb)
+        public void Build(Bounds aabb)
         {
-	        mCenter = aabb.Center;
+	        mCenter = aabb.center;
 	        mXAxis = Vector3.right;
 	        mYAxis = Vector3.up;
 	        mZAxis = Vector3.forward;
-	        mExtents = aabb.Extents;
+	        mExtents = aabb.extents;
 	        CompleteExtAxis();
         }
 

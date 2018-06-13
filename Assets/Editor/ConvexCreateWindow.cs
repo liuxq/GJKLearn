@@ -30,7 +30,7 @@ public class ConvexCreateWindow : EditorWindow
                 if(m != null)
                 {
                     ConvexData cd = new ConvexData();
-                    if(UEEditUtil.MakeHull(m, null, "", ref cd))
+                    if (UEEditUtil.MakeHull(m, cur.transform, "", ref cd))
                     {
                         cc.ConvexDatas.Add(cd);
                     }

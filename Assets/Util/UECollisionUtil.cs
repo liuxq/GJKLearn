@@ -240,13 +240,13 @@
 	        vCenter: sphere's center
 	        radius: sphere's radius
         */
-        public static bool AABBSphereOverlap(AABB aabb, Vector3 vCenter, float radius)
+        public static bool AABBSphereOverlap(Bounds aabb, Vector3 vCenter, float radius)
         {
             float d = 0.0f;
             float radius2 = radius * radius;
 
-            float tmp = vCenter.x - aabb.Center.x;
-            float s = tmp + aabb.Extents.x;
+            float tmp = vCenter.x - aabb.center.x;
+            float s = tmp + aabb.extents.x;
 
             if (s < 0.0f)
             {
@@ -255,7 +255,7 @@
             }
             else
             {
-                s = tmp - aabb.Extents.x;
+                s = tmp - aabb.extents.x;
                 if (s > 0.0f)
                 {
                     if ((d += s * s) > radius2)
@@ -263,8 +263,8 @@
                 }
             }
 
-            tmp = vCenter.y - aabb.Center.y;
-            s = tmp + aabb.Extents.y;
+            tmp = vCenter.y - aabb.center.y;
+            s = tmp + aabb.extents.y;
 
             if (s < 0.0f)
             {
@@ -273,7 +273,7 @@
             }
             else
             {
-                s = tmp - aabb.Extents.y;
+                s = tmp - aabb.extents.y;
                 if (s > 0.0f)
                 {
                     if ((d += s * s) > radius2)
@@ -281,8 +281,8 @@
                 }
             }
 
-            tmp = vCenter.z - aabb.Center.z;
-            s = tmp + aabb.Extents.z;
+            tmp = vCenter.z - aabb.center.z;
+            s = tmp + aabb.extents.z;
 
             if (s < 0.0f)
             {
@@ -291,7 +291,7 @@
             }
             else
             {
-                s = tmp - aabb.Extents.z;
+                s = tmp - aabb.extents.z;
                 if (s > 0.0f)
                 {
                     if ((d += s * s) > radius2)
@@ -343,26 +343,15 @@
             return true;
         }
 
-        public static bool AABBAABBOverlap(AABB aabb1, AABB aabb2)
-        {
-	        if (aabb1.Mins.x > aabb2.Maxs.x || aabb2.Mins.x > aabb1.Maxs.x)
-		        return false;
-	        if (aabb1.Mins.y > aabb2.Maxs.y || aabb2.Mins.y > aabb1.Maxs.y)
-		        return false;
-	        if (aabb1.Mins.z > aabb2.Maxs.z || aabb2.Mins.z > aabb1.Maxs.z)
-		        return false;
-	        return true;
-        }
-
         public static bool AABBAABBOverlap(Bounds aabb1, Bounds aabb2)
         {
-            if (aabb1.min.x > aabb2.max.x || aabb2.min.x > aabb1.max.x)
-                return false;
-            if (aabb1.min.y > aabb2.max.y || aabb2.min.y > aabb1.max.y)
-                return false;
-            if (aabb1.min.z > aabb2.max.z || aabb2.min.z > aabb1.max.z)
-                return false;
-            return true;
+	        if (aabb1.min.x > aabb2.max.x || aabb2.min.x > aabb1.max.x)
+		        return false;
+	        if (aabb1.min.y > aabb2.max.y || aabb2.min.y > aabb1.max.y)
+		        return false;
+	        if (aabb1.min.z > aabb2.max.z || aabb2.min.z > aabb1.max.z)
+		        return false;
+	        return true;
         }
 
         public static bool IsSphereOutsideCH(Vector3 centroid, float radius, ConvexData ch)

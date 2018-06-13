@@ -861,9 +861,9 @@ using System;
             return bound;
         }
 
-        public static bool IsAABBInvalide(AABB aabb)
+        public static bool IsAABBInvalide(Bounds aabb)
         {
-            return FloatEqual(aabb.Extents.x, 0.0f) || FloatEqual(aabb.Extents.y, 0.0f) || FloatEqual(aabb.Extents.z, 0.0f);
+            return FloatEqual(aabb.extents.x, 0.0f) || FloatEqual(aabb.extents.y, 0.0f) || FloatEqual(aabb.extents.z, 0.0f);
         }
 
         public static bool IsBoundsInvalide(Bounds bd)

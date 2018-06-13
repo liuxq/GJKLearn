@@ -45,7 +45,7 @@ using UnityEngine;
         }
 
         private bool mAABBDirty;
-        public AABB mAABB = new AABB();		// keep record of convex hull's AABB.
+        public Bounds mAABB = new Bounds();		// keep record of convex hull's AABB.
         public List<Vector3> mLstVertices = new List<Vector3>();
         public List<CovFace> mLstCovFace = new List<CovFace>();
         public uint mFlags;
@@ -54,7 +54,6 @@ using UnityEngine;
         {
             Flags = 0;
             mAABBDirty = false;
-            mAABB.Clear();
         }
 
         public ConvexData(ConvexData chData)
@@ -189,8 +188,8 @@ using UnityEngine;
         {
             //	AABB check at first
             //	Add by dyx 2006.11.30
-            AABB aabbOther = another.GetAABB();
-            if (!UECollisionUtil.AABBAABBOverlap(mAABB.Center, mAABB.Extents, aabbOther.Center, aabbOther.Extents))
+            Bounds aabbOther = another.GetAABB();
+            if (!UECollisionUtil.AABBAABBOverlap(mAABB.center, mAABB.extents, aabbOther.center, aabbOther.extents))
                 return 0;
 
             bool curVOut = false;
@@ -673,11 +672,11 @@ using UnityEngine;
         }
 
         // build the aabb at runtime.
-        public bool GetAABB(out AABB aabb)
+        public bool GetAABB(out Bounds aabb)
         {
             if (GetVertexNum() < 2)
             {
-                aabb = null;
+                aabb = new Bounds();
                 return false;
             }
 
@@ -689,7 +688,7 @@ using UnityEngine;
         }
 
         // get the aabb we precomputed.
-        public AABB GetAABB()
+        public Bounds GetAABB()
         {
             if (mAABBDirty)
                 BuildAABB();
@@ -835,7 +834,7 @@ using UnityEngine;
         {
             mAABBDirty = false;
             mAABB.Build(mLstVertices.ToArray());
-            mAABB.Extend(AABB.Epsilon);
+            mAABB.Expand(1E-4f);
         }
 
         public int BruteForceSearch(Vector3 _dir) 

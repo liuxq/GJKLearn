@@ -506,7 +506,7 @@ using UnityEngine;
             Vector3 x = r * _lambda;
             int size = 1;
 
-            Vector3 dir = a.Center - b.GetAABB().Center;
+            Vector3 dir = a.Center - b.GetAABB().center;
             Vector3 _initialSearchDir = (Vector3.Dot(dir, dir) > FEps) ? dir : Vector3.right;
             Vector3 initialSearchDir = Vector3.Normalize(_initialSearchDir);
 
@@ -685,7 +685,7 @@ using UnityEngine;
 
             int size = 0;
 
-            Vector3 _initialSearchDir = a.Center - b.GetAABB().Center;
+            Vector3 _initialSearchDir = a.Center - b.GetAABB().center;
             closest = Vector3.Dot(_initialSearchDir, _initialSearchDir) > 0 ? _initialSearchDir : Vector3.right;
 
             Vector3 prevClosest = closest;

@@ -102,18 +102,17 @@ using UnityEngine;
             HalfSpace.SetDistThresh();  //将Halfspace恢复到缺省的阈值
         }
 
-        public AABB GetAABB()
+        public Bounds GetAABB()
         {
-            AABB aabb = new AABB();
+            Bounds aabb = new Bounds();
             for (int i = 0; i < LstVertecies.Count; i++)
             {
                 //只考虑度数必须不小于3的顶点
                 if (LstVertexInfo[i].Degree < (byte)3)
                     continue;
 
-                aabb.AddVertex(LstVertecies[i]);
+                aabb.Encapsulate(LstVertecies[i]);
             }
-            aabb.CompleteCenterExts();
 
             return aabb;
         }
