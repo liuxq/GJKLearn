@@ -589,7 +589,7 @@ using UnityEngine;
             LstVertexInfo.Add(vInfo);
         }
 
-        //导处数据到ConvexData中
+        //导出数据到ConvexData中
         public void ExportCHData(ConvexData chData)
         {
             List<int> lstMap = new List<int>();		//一个由顶点在本类中id到CConvexHullData中id的一个映射表；
@@ -603,7 +603,6 @@ using UnityEngine;
                 face.Normal = n;
                 face.Dist = pat.Dist;
 
-                HalfSpace hs = new HalfSpace();
                 for (int j = 0; j < pat.GetVNum(); j++)
                 {
                     int vid = pat.GetVID(j);
@@ -612,7 +611,6 @@ using UnityEngine;
                     Vector3 v1 = Vector3.zero;
                     Vector3 v2 = Vector3.zero;
                     pat.GetEdge(j, ref v1, ref v2);
-                    hs.Set(v1, v2, v2 + n);
                     int ExistID = FindInArray(vid, lstMap);
                     if (ExistID == -1)
                     {
@@ -621,14 +619,14 @@ using UnityEngine;
                         //插入到CConvexHullData的Vertices中
                         chData.AddVertex(v1);
                         int newID = chData.GetVertexNum() - 1;	//在pCHData中的id
-                        face.AddElement(newID, hs);
+                        face.AddElement(newID);
 
                         lstMap.Add(vid);
                     }
                     else
                     {
                         //说明是已经存在的顶点
-                        face.AddElement(ExistID, hs);
+                        face.AddElement(ExistID);
                     }
                 }
 
@@ -636,10 +634,6 @@ using UnityEngine;
                 chData.AddFace(face);
 
             }
-
-            // 计算额外边界半空间
-            chData.ComputeFaceExtraHS();
-
         }
 
         //计算凸多面体与平面组相交所得到的交点投影到XOZ平面构成的2D凸包

@@ -1,14 +1,7 @@
-﻿
-using UnityEngine;
+﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
-public class TRACE_PURPOSE
-{
-    public const uint PURPOSE_PICK = 0;
-    public const uint PURPOSE_MOVE = 1;
-    public const uint ONLY_TERRAIN = 2;
-}
 
 public class HIT_ENVTYPE
 {
@@ -49,9 +42,9 @@ public class MoveCDR
 
     public MoveCDR()
     {
-        Gravity = UECollision.GRAVITY;
-        SlopeThresh = UECollision.STAY_SLOP_MIN_Y;
-        StepHeight = UECollision.MOVE_STEP_HEIGHT;
+        Gravity = Collision.GRAVITY;
+        SlopeThresh = Collision.STAY_SLOP_MIN_Y;
+        StepHeight = Collision.MOVE_STEP_HEIGHT;
     }
 
     public void ResetInfo(bool clearspeed)
@@ -70,16 +63,6 @@ public class MoveCDR
         ClipVel.Set(0.0f, 0.0f, 0.0f);
         ActualVel.Set(0.0f, 0.0f, 0.0f);
     }
-}
-
-public class ObjectMoveCD
-{
-    public Vector3 Pos;
-    public Vector3 Dir;
-    public float Velocity;
-    public float TimeSec;
-    public bool TraceGnd;
-    public Vector3 Normal;	    //meaningful when trace ground
 }
 
 public class EnvTraceInfo
@@ -127,7 +110,7 @@ public class GroundTraceInfo
     public bool Support;      //false if ground missed
 };
 
-public class UECollision
+public class Collision
 {
     public const float GRAVITY = 9.81f;
     public const float TRACE_STEP_HEIGHT = 3.0f;
@@ -141,7 +124,7 @@ public class UECollision
     public const float STAND_JUMP_SPEED = 1.0f;
     public const float JUMP_HEIGHT = 1.2f;
 
-    public static readonly float DTP_LIMIT = Mathf.Cos(UEMathUtil.DegreeToRadian(105));
+    public static readonly float DTP_LIMIT = Mathf.Cos(Mathf.Deg2Rad * 105);
 
     public const float DIST_EPSILON = 1e-4f;
     public const float SQR_DIST_EPSILON = 1e-8f;
@@ -153,10 +136,8 @@ public class UECollision
 
     public static bool MoveLog = false;
 
-    private static UERayTrace mRayTraceInfo = new UERayTrace();
     private static EnvTraceInfo mEnvTraceInfo = new EnvTraceInfo();
     private static GroundTraceInfo mGndTraceInfo = new GroundTraceInfo();
-    private static BrushTraceInfo mBrushTraceInfo = new BrushTraceInfo();
     private static MoveTraceInfo mMoveTraceInfo = new MoveTraceInfo();
     private static CapsuleTraceBrushInfo mCapsuleTraceBrushInfo = new CapsuleTraceBrushInfo();
 
@@ -215,7 +196,7 @@ public class UECollision
 
         // See if we are changing direction a bit
 		//currentspeed = Mathf.Lerp(Vector3.Dot(vel, wishdir), vel.magnitude, 0.3f);
-        currentspeed = UEMathUtil.Normalize(ref vel);
+        currentspeed = MathUtil.Normalize(ref vel);
         wishspeed *= Mathf.Clamp01(Vector3.Dot(vel, wishdir)) * 0.8f + 0.2f;
 
         // Reduce wishspeed by the amount of veer.
@@ -275,10 +256,10 @@ public class UECollision
     {
         float DTP_EPSILON = 0.001f;
         float backoff = 0.0f;
-        UEMathUtil.Clamp(ref bounce, 1.0f, 1.5f);
+        bounce = Mathf.Clamp(bounce, 1.0f, 1.5f);
         Vector3 indir = velin;
 
-        float inspd = UEMathUtil.Normalize(ref indir);
+        float inspd = MathUtil.Normalize(ref indir);
         float dtp = Vector3.Dot(indir, normal);
         if (dtp > -DTP_EPSILON && dtp < DTP_EPSILON)
         {
@@ -290,7 +271,8 @@ public class UECollision
         velout = velout.normalized * inspd;
 
         backoff = Mathf.Abs(dtp) * (bounce - 1.0f) * inspd;
-        UEMathUtil.ClampFloor(ref backoff, DTP_EPSILON);
+        backoff = Mathf.Max(backoff, DTP_EPSILON);
+
         velout += backoff * normal;
 
         //Vector3 velh = velout;
@@ -387,7 +369,7 @@ public class UECollision
             {
                 Vector3 delpos = mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
                 Vector3 deldir = delpos;
-                float deldis = UEMathUtil.Normalize(ref deldir);
+                float deldis = MathUtil.Normalize(ref deldir);
                 Debug.Log("Try " + tryidx.ToString() + " result" +
                     " end:" + mv.End.ToString("G") +
                     " fraction:" + mEnvTraceInfo.Fraction.ToString("G") +
@@ -750,7 +732,7 @@ public class UECollision
             mv.Velocity.y -= mv.Gravity * mv.TimeSec * 0.5f;
         }
 
-        UEMathUtil.ClampFloor(ref mv.Velocity.y, mv.MaxFallSpd);
+        mv.Velocity.y = Mathf.Max(mv.Velocity.y, mv.MaxFallSpd);
 
         if (MoveLog)
         {
@@ -874,16 +856,16 @@ public class UECollision
         mMoveTraceInfo.TimeSec = cdr.TimeSec;
         mMoveTraceInfo.WishDir = cdr.VelDirH;
         mMoveTraceInfo.WishSpd = cdr.Speed;
-        mMoveTraceInfo.Accel = UECollision.MOVE_ACCELERATION;
+        mMoveTraceInfo.Accel = Collision.MOVE_ACCELERATION;
         mMoveTraceInfo.Velocity = cdr.ClipVel; // the last move speed
-        mMoveTraceInfo.MaxFallSpd = UECollision.MAX_FALL_SPEED;
+        mMoveTraceInfo.MaxFallSpd = Collision.MAX_FALL_SPEED;
         mMoveTraceInfo.Gravity = cdr.Gravity;
         mMoveTraceInfo.StepHeight = cdr.StepHeight;
 
         FullGroundMove(mMoveTraceInfo);
 
         cdr.ClipVel = mMoveTraceInfo.Velocity;
-        cdr.MoveDist = UEMathUtil.Magnitude(mMoveTraceInfo.End - cdr.Center);
+        cdr.MoveDist = (mMoveTraceInfo.End - cdr.Center).magnitude;
         cdr.Blocked = (cdr.MoveDist < DIST_EPSILON);
         cdr.Center = mMoveTraceInfo.End;
         cdr.TPNormal = mMoveTraceInfo.TPNormal;
@@ -959,12 +941,17 @@ public class UECollision
 
     public static bool CapsuleCollideWithBrush(CapsuleTraceBrushInfo info)
     {
-        if (null == info || null == UECollisionMan.Instance)
+        if (null == info || null == CollisionMan.Instance)
             return false;
 
         bool ret = false;
-        UECollisionMan manager = UECollisionMan.Instance;
+        CollisionMan manager = CollisionMan.Instance;
         if (null != manager && manager.CapsuleTraceBrush(info))
+        {
+            ret = true;
+        }
+
+        if (null != manager && manager.DynamicCapsuleTraceCapsules(info))
         {
             ret = true;
         }
@@ -994,37 +981,6 @@ public class UECollision
         fraction = mEnvTraceInfo.Fraction;
         end = center + delta * fraction;
 
-        return collide;
-    }
-
-    public static bool AnimCameraTrace(Vector3 start, Vector3 delta, ref Vector3 end)
-    {
-        Vector3 pdelta = new Vector3(0, -.9f, 0);
-        Vector3 pstart = start;
-        pstart.y += .9f;
-        mEnvTraceInfo.Start = pstart;
-        mEnvTraceInfo.TerStart = pstart;
-        mEnvTraceInfo.HalfLen = 0;
-        mEnvTraceInfo.Radius = CAMERA_SIZE;
-        mEnvTraceInfo.TerStart.y -= mCamExt.y;
-        mEnvTraceInfo.Delta = pdelta;
-        mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_CAMTRACE;
-
-        bool collide = CollideWithEnv(mEnvTraceInfo);
-        pstart += pdelta * mEnvTraceInfo.Fraction;
-
-        pdelta = start + delta - pstart;
-
-        mEnvTraceInfo.Start = pstart;
-        mEnvTraceInfo.TerStart = pstart;
-        mEnvTraceInfo.HalfLen = 0;
-        mEnvTraceInfo.Radius = CAMERA_SIZE;
-        mEnvTraceInfo.TerStart.y -= mCamExt.y;
-        mEnvTraceInfo.Delta = pdelta;
-        mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_CAMTRACE;
-
-        collide = CollideWithEnv(mEnvTraceInfo);
-        end = pstart + pdelta * mEnvTraceInfo.Fraction;
         return collide;
     }
 
@@ -1059,12 +1015,14 @@ public class UECollision
         if (Vector3.Dot(mEnvTraceInfo.HitNormal, tracedir) < 0.0f)
         {
             fraction = mEnvTraceInfo.Fraction;
-            float deltadist = UEMathUtil.Normalize(ref tracedir);
+            float deltadist = MathUtil.Normalize(ref tracedir);
             float dotabs = Mathf.Abs(Vector3.Dot(mEnvTraceInfo.HitNormal, tracedir));
-            UEMathUtil.ClampFloor(ref dotabs, 0.10f);
+
+            dotabs = Mathf.Max(dotabs, 0.10f);
             float backdist = CAMERA_SIZE / dotabs;
             fraction -= backdist / deltadist;
-            UEMathUtil.ClampFloor(ref fraction, 0.0f);
+            fraction = Mathf.Max(fraction, 0.0f);
+            
             end = start + delta * fraction;
         }
 

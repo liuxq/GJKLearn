@@ -33,7 +33,7 @@ public class CharacterMove : MonoBehaviour {
     public Vector3 GroundMove(Vector3 dirH, float speedH, uint time, float speedV = 0.0f)
     {
         Vector3 realDirH = dirH;
-        if (Mathf.Abs(realDirH.y) > UEMathUtil.FLOAT_EPSILON)
+        if (Mathf.Abs(realDirH.y) > MathUtil.FLOAT_EPSILON)
         {
             realDirH.y = 0;
             realDirH.Normalize();
@@ -46,14 +46,13 @@ public class CharacterMove : MonoBehaviour {
             speedH = -speedH;
         }
 
-
         cdr.Center = transform.position;
         cdr.VelDirH = dirH;
         cdr.Speed = speedH;
         cdr.TimeSec = time * 0.001f;
         cdr.ClipVel.y += speedV;
 
-        UECollision.OnGroundMove(cdr);
+        Collision.OnGroundMove(cdr);
 
         //if (cdr.OnSurface && cdr.TPNormal.sqrMagnitude > UEMathUtil.FLOAT_EPSILON)
         //    mHostPlayer.GroundNormal = cdr.TPNormal;

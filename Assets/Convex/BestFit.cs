@@ -1,8 +1,4 @@
-﻿/*
- * CREATED:     2014-12-31 14:43:43
- * PURPOSE:     Best fit algorithm
- * AUTHOR:      Wangrui
- */
+﻿
 
 // A code snippet to compute the best fit AAB, OBB, plane, capsule and sphere
 // Quaternions are assumed a float X,Y,Z,W

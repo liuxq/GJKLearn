@@ -6,16 +6,6 @@ using System.IO;
 using UnityEngine;
 
 
-    public class ConvexTrasformInfo
-    {
-        public Vector3 Translate;
-        public Quaternion Quaternion;
-        public Vector3 Scale;
-
-        public ConvexTrasformInfo()
-        { }
-    }
-
     [Serializable]
     public class ConvexData
     {
@@ -79,7 +69,7 @@ using UnityEngine;
             return new ConvexData(this);
         }
 
-        public virtual bool Load(UEBinaryFile fs, uint version)
+        public virtual bool Load(LBinaryFile fs, uint version)
         {
             Reset();
 
@@ -87,7 +77,7 @@ using UnityEngine;
             int vertnum = fs.Reader.ReadInt32();
             for (int i = 0; i < vertnum; i++)
             {
-                Vector3 vec = EditSLBinary.LoadVector3(fs);
+                Vector3 vec = SLBinary.LoadVector3(fs);
                 mLstVertices.Add(vec);
             }
             int facenum = fs.Reader.ReadInt32();
@@ -102,14 +92,14 @@ using UnityEngine;
             return true;
         }
 
-        public virtual bool Save(UEBinaryFile fs)
+        public virtual bool Save(LBinaryFile fs)
         {
             fs.Writer.Write(mFlags);
             int vertnum = GetVertexNum();
             fs.Writer.Write(vertnum);
             for (int i = 0; i < vertnum; i++)
             {
-                EditSLBinary.SaveVector3(fs, mLstVertices[i]);
+                SLBinary.SaveVector3(fs, mLstVertices[i]);
             }
             int facenum = GetFaceNum();
             fs.Writer.Write(facenum);
@@ -176,186 +166,6 @@ using UnityEngine;
             //}
         }
 
-        //////////////////////////////////////////////////
-        // Test if two convex hull overlap.
-        // Return value:
-        //		0: no overlap
-        //		1: overlap partly
-        //		2: this CH is fully inside Another CH
-        //		3: Another CH is fully inside this CH
-        //////////////////////////////////////////////////
-        public int ConvexHullOverlapTest(ConvexData another)
-        {
-            //	AABB check at first
-            //	Add by dyx 2006.11.30
-            Bounds aabbOther = another.GetAABB();
-            if (!UECollisionUtil.AABBAABBOverlap(mAABB.center, mAABB.extents, aabbOther.center, aabbOther.extents))
-                return 0;
-
-            bool curVOut = false;
-            bool lastVOut = false;
-
-            for (int i = 0; i < GetVertexNum(); ++i)
-            {
-                lastVOut = curVOut;
-                curVOut = UECollisionUtil.IsVertexOutsideCH(mLstVertices[i], another);
-                if (i > 0 && curVOut != lastVOut)
-                    return 1;		// some vertices of this are inside another while others are outside
-            }
-
-            if (curVOut)
-            {
-                // all vertices of mine are outside another
-                for (int i = 0; i < another.GetVertexNum(); ++i)
-                {
-                    lastVOut = curVOut;
-                    curVOut = UECollisionUtil.IsVertexOutsideCH(another.mLstVertices[i], this);
-                    if (i > 0 && curVOut != lastVOut)
-                        return 1;		// some vertices of another are inside this while others are outside
-                }
-
-                if (curVOut)
-                {
-                    // further test whether we will intersect each other
-                    Vector3 start, delta;
-                    Vector3 hitPos = Vector3.zero;
-                    CovFace hitFace = null;
-                    float fraction = 0.0f;
-
-                    // test whether each edge of mine will intersect another!
-                    for (int i = 0; i < GetFaceNum(); i++)
-                    {
-                        for (int j = 0; j < mLstCovFace[i].GetVNum(); j++)
-                        {
-                            start = mLstVertices[mLstCovFace[i].GetVID(j)];
-                            if (j == mLstCovFace[i].GetVNum() - 1)
-                                delta = mLstVertices[mLstCovFace[i].GetVID(0)];
-                            else
-                                delta = mLstVertices[mLstCovFace[i].GetVID(j + 1)];
-                            delta -= start;
-                            if (UECollisionUtil.RayIntersectWithCH(start, delta, another, ref hitFace, ref hitPos, ref fraction))
-                                return 1;
-                        }
-                    }
-
-                    // test whether each edge of another will intersect me!
-                    for (int i = 0; i < another.GetFaceNum(); i++)
-                    {
-                        for (int j = 0; j < another.mLstCovFace[i].GetVNum(); j++)
-                        {
-                            start = another.mLstVertices[another.mLstCovFace[i].GetVID(j)];
-                            if (j == another.mLstCovFace[i].GetVNum() - 1)
-                                delta = another.mLstVertices[another.mLstCovFace[i].GetVID(0)];
-                            else
-                                delta = another.mLstVertices[another.mLstCovFace[i].GetVID(j + 1)];
-                            delta -= start;
-                            if (UECollisionUtil.RayIntersectWithCH(start, delta, this, ref hitFace, ref hitPos, ref fraction))
-                                return 1;
-                        }
-                    }
-                    return 0;       // not any intersection
-                }
-                else
-                    return 3;		// all vertices of another are inside me, so we return 3
-            }
-
-            return 2;		// all vertices of mine are inside another, so we return 2
-        }
-
-        // Generate convex hull from OBB directly
-        public void Import(OBB obb)
-        {
-            Reset();
-
-            List<Vector3> lstVertices = new List<Vector3>();
-            List<short> lstIndices = new List<short>();
-            obb.GetVertices(lstVertices, lstIndices, true);
-
-            // Note: the order of the Vertices is (x,y,z)
-            // (-, +, +) (+, +, +) (+,+,-) (-, +, -) (-, -, +) (+, -, +) (+,-,-) (-, -, -)
-
-            for (int i = 0; i < 8; ++i)
-                AddVertex(lstVertices[i]);
-
-            HalfSpace hsXPos = new HalfSpace();
-            HalfSpace hsXNeg = new HalfSpace();
-            HalfSpace hsYPos = new HalfSpace();
-            HalfSpace hsYNeg = new HalfSpace();
-            HalfSpace hsZPos = new HalfSpace();
-            HalfSpace hsZNeg = new HalfSpace();
-
-            hsXPos.SetNV(obb.XAxis, obb.Center + obb.ExtX);
-            hsXNeg.SetNV(-obb.XAxis, obb.Center - obb.ExtX);
-            hsYPos.SetNV(obb.YAxis, obb.Center + obb.ExtY);
-            hsYNeg.SetNV(-obb.YAxis, obb.Center - obb.ExtY);
-            hsZPos.SetNV(obb.ZAxis, obb.Center + obb.ExtZ);
-            hsZNeg.SetNV(-obb.ZAxis, obb.Center - obb.ExtZ);
-
-            CovFace face = null;
-
-            // 依次添加6个面
-
-            // positive-X face
-            face = new CovFace();
-            face.CHData = this;
-            face.SetHS(hsXPos);
-            face.AddElement(2, hsYPos);
-            face.AddElement(1, hsZPos);
-            face.AddElement(5, hsYNeg);
-            face.AddElement(6, hsZNeg);
-            mLstCovFace.Add(face);
-
-            // negative-X face
-            face = new CovFace();
-            face.CHData = this;
-            face.SetHS(hsXNeg);
-            face.AddElement(0, hsYPos);
-            face.AddElement(3, hsZNeg);
-            face.AddElement(7, hsYNeg);
-            face.AddElement(4, hsZPos);
-            mLstCovFace.Add(face);
-
-            // positive-Y face
-            face = new CovFace();
-            face.CHData = this;
-            face.SetHS(hsYPos);
-            face.AddElement(0, hsZPos);
-            face.AddElement(1, hsXPos);
-            face.AddElement(2, hsZNeg);
-            face.AddElement(3, hsXNeg);
-            mLstCovFace.Add(face);
-
-            // negative-Y face
-            face = new CovFace();
-            face.CHData = this;
-            face.SetHS(hsYNeg);
-            face.AddElement(6, hsXPos);
-            face.AddElement(5, hsZPos);
-            face.AddElement(4, hsXNeg);
-            face.AddElement(7, hsZNeg);
-            mLstCovFace.Add(face);
-
-            // positive-Z face
-            face = new CovFace();
-            face.CHData = this;
-            face.SetHS(hsZPos);
-            face.AddElement(1, hsYPos);
-            face.AddElement(0, hsXNeg);
-            face.AddElement(4, hsYNeg);
-            face.AddElement(5, hsXPos);
-            mLstCovFace.Add(face);
-
-            // negative-Z face
-            face = new CovFace();
-            face.CHData = this;
-            face.SetHS(hsZNeg);
-            face.AddElement(3, hsYPos);
-            face.AddElement(2, hsXPos);
-            face.AddElement(6, hsYNeg);
-            face.AddElement(7, hsXNeg);
-            mLstCovFace.Add(face);
-        }
-
         public bool CreateConvexHullData(Vector3[] vertBuf, CovFace faceTop, CovFace faceBottom)
         {
             if (vertBuf == null || vertBuf.Length <= 0)
@@ -400,27 +210,17 @@ using UnityEngine;
                 face.Set(vertBuf[p0], vertBuf[p1], vertBuf[p2]);
                 Vector3 vNormal = face.Normal;
 
-                HalfSpace hs0 = new HalfSpace();
-                hs0.Set(vertBuf[p0], vertBuf[p2], vertBuf[p2] + vNormal);
-                face.AddElement(p0, hs0);
+                face.AddElement(p0);
+                face.AddElement(p2);
+               
+                face.AddElement(p3);
 
-                HalfSpace hs1 = new HalfSpace();
-                hs1.Set(vertBuf[p2], vertBuf[p3], vertBuf[p3] + vNormal);
-                face.AddElement(p2, hs1);
-
-                HalfSpace hs2 = new HalfSpace();
-                hs2.Set(vertBuf[p3], vertBuf[p1], vertBuf[p1] + vNormal);
-                face.AddElement(p3, hs2);
-
-                HalfSpace hs3 = new HalfSpace();
-                hs3.Set(vertBuf[p1], vertBuf[p0], vertBuf[p0] + vNormal);
-                face.AddElement(p1, hs3);
+               
+                face.AddElement(p1);
 
                 AddFace(face);
 
-                HalfSpace hsBTM = new HalfSpace();
-                hsBTM.Set(vertBuf[p1], vertBuf[p3], vertBuf[p3] + vNormalBTM);
-                faceBottom.AddElement(p1, hsBTM);
+                faceBottom.AddElement(p1);
 
                 pi0 = idxInverse;
                 //pi1 = idxInverse + 1;
@@ -431,9 +231,7 @@ using UnityEngine;
                 if (pi3 >= vertCount)
                     pi3 -= vertCount;
 
-                HalfSpace hsTop = new HalfSpace();
-                hsTop.Set(vertBuf[pi0], vertBuf[pi2], vertBuf[pi2] + vNormalTop);
-                faceTop.AddElement(pi0, hsTop);
+                faceTop.AddElement(pi0);
 
                 idx += 2;
                 idxInverse -= 2;
@@ -460,7 +258,7 @@ using UnityEngine;
             Vector3 e20 = triangle[0] - triangle[2];
 
             Vector3 vNTop = Vector3.Cross(e01, e20);
-            float fDNTop = UEMathUtil.Normalize(ref vNTop);
+            float fDNTop = MathUtil.Normalize(ref vNTop);
 
             // Collinear test
             if (fDNTop < 1e-5)
@@ -539,13 +337,6 @@ using UnityEngine;
             faceBottom.Dist = fBtmD;
 
             return CreateConvexHullData(vertBuf, faceTop, faceBottom);
-        }
-
-        // 计算每个face的额外边界halfspace!
-        public void ComputeFaceExtraHS()
-        {
-            for (int i = 0; i < mLstCovFace.Count; i++)
-                mLstCovFace[i].ComputeExtraHS();
         }
 
         // 对ConvexData进行坐标变换！变换矩阵为mtxTrans
@@ -726,9 +517,9 @@ using UnityEngine;
         {
             for (int i = 0; i < mLstVertices.Count; i++)
             {
-                if (Mathf.Abs(mLstVertices[i].x) < UEMathUtil.FLOAT_EPSILON ||
-                    Mathf.Abs(mLstVertices[i].y) < UEMathUtil.FLOAT_EPSILON ||
-                    Mathf.Abs(mLstVertices[i].z) < UEMathUtil.FLOAT_EPSILON)
+                if (Mathf.Abs(mLstVertices[i].x) < MathUtil.FLOAT_EPSILON ||
+                    Mathf.Abs(mLstVertices[i].y) < MathUtil.FLOAT_EPSILON ||
+                    Mathf.Abs(mLstVertices[i].z) < MathUtil.FLOAT_EPSILON)
                     return false;
                 if (mLstVertices[i].x > VERT_VALUE_MAX || mLstVertices[i].x < -VERT_VALUE_MAX ||
                     mLstVertices[i].y > VERT_VALUE_MAX || mLstVertices[i].y < -VERT_VALUE_MAX ||
@@ -864,6 +655,34 @@ using UnityEngine;
             index = BruteForceSearch(dir);
             return mLstVertices[index];
 		}
+
+        public void Export(CDBrush cdBrush)
+        {
+            if (cdBrush == null)
+            {
+                return;
+            }
+            cdBrush.Release();
+            for (int i = 0; i < GetFaceNum(); i++)
+            {
+                CDSide side = new CDSide();
+                HalfSpace HS = new HalfSpace();
+                HS.Normal = GetFace(i).Normal;
+                HS.Dist = GetFace(i).Dist;
+
+                side.Init(HS, false);
+                cdBrush.LstSides.Add(side);
+                cdBrush.cd = this;
+            }
+
+            Bounds tmpAABB;
+            GetAABB(out tmpAABB);
+            if (tmpAABB != null)
+            {
+                cdBrush.BoundAABB = tmpAABB;
+            }
+            cdBrush.Flags = Flags;
+        }
 
     }
 

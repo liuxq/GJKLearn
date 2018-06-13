@@ -1,80 +1,21 @@
-﻿
-using UnityEngine;
+﻿using UnityEngine;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 
-
-public class UECollisionMan : MonoBehaviour
-{
-    static public UECollisionMan Instance = null;
-
-    public ConvexCollection _ConvexCollection;
-
-    protected UECollisionTree _Tree;
-    protected BrushTraceInfo _BrushTrace;
-
-    public void Start()
-    {
-        _Tree = new UECollisionTree();
-        _BrushTrace = new BrushTraceInfo();
-        Instance = this;
-        ResetCollisionMap();
-    }
-
-    public void UnLoad()
-    {
-        _Tree.Release();
-    }
-
-    public bool CapsuleTraceBrush(CapsuleTraceBrushInfo info)
-    {
-        bool ret = _Tree.CapsuleTraceBrush(info);
-        return ret;
-    }
-
-    public bool PointInBrush(Vector3 p, float offset)
-    {
-        return _Tree.PointInBrush(p, offset);
-    }
-
-    public void ResetCollisionMap()
-    {
-        List<CDBrush> list = new List<CDBrush>();
-        if (_ConvexCollection != null)
-        {
-            foreach (ConvexData cd in _ConvexCollection.ConvexDatas)
-            {
-                cd.GetAABB();
-                QBrush qbrush = new QBrush();
-                if (!qbrush.AddBrushBevels(cd))
-                    continue;
-                CDBrush pCDBrush = new CDBrush();
-                qbrush.Export(pCDBrush);
-                list.Add(pCDBrush);
-            }
-
-        }
-
-        if (list.Count != 0)
-            _Tree.Build(list);
-    }
-}
- 
-
-public class UECollisioinTreeNode
+public class CollisioinTreeNode
 {
     public Bounds AABB;
     public List<CDBrush> LstCDBrush { get; set; }
-    public UECollisioinTreeNode[] Children { get; set; }
+    public CollisioinTreeNode[] Children { get; set; }
     public bool Used { get; set; }
 
-    public UECollisioinTreeNode()
+    public CollisioinTreeNode()
     {
         AABB = new Bounds();
         AABB.Clear();
         LstCDBrush = new List<CDBrush>();
-        Children = new UECollisioinTreeNode[8];
+        Children = new CollisioinTreeNode[8];
     }
 
     public bool IsLeaf()
@@ -98,9 +39,9 @@ public class UECollisioinTreeNode
     }
 }
 
-public class UECollisionTree
+public class CollisionTree
 {
-    private UECollisioinTreeNode _Root;
+    private CollisioinTreeNode _Root;
     private int _MinBrushInNode;
     private float _MinNodeSize;
 
@@ -109,12 +50,12 @@ public class UECollisionTree
         get { return _Root.AABB; }
     }
 
-    public UECollisionTree()
+    public CollisionTree()
     {
-        _Root = new UECollisioinTreeNode();
+        _Root = new CollisioinTreeNode();
     }
 
-    public UECollisionTree(List<CDBrush> list)
+    public CollisionTree(List<CDBrush> list)
     {
         Build(list);
     }
@@ -156,10 +97,9 @@ public class UECollisionTree
 
         _MinBrushInNode = minbrushinnode;
         _MinNodeSize = minnodesize;
-        _Root = new UECollisioinTreeNode();
+        _Root = new CollisioinTreeNode();
 
-        Bounds aabb = _Root.AABB;// new AABB();
-        //aabb.Clear();
+        Bounds aabb = _Root.AABB;
 
         int all = brushs.Count;
         for(int i = 0; i < all; ++i)
@@ -168,7 +108,6 @@ public class UECollisionTree
             _Root.LstCDBrush.Add(brushs[i]);
         }
 
-        //_Root.AABB = aabb;
         Split(_Root);
     }
 
@@ -182,7 +121,7 @@ public class UECollisionTree
         return _PointInBrush(_Root, p, offset);
     }
 
-    public bool _PointInBrush(UECollisioinTreeNode pNode, Vector3 p, float offset)
+    public bool _PointInBrush(CollisioinTreeNode pNode, Vector3 p, float offset)
     {
         if (null == pNode)
         {
@@ -222,7 +161,7 @@ public class UECollisionTree
         _Root.Release();
     }
 
-    private void Remove(UECollisioinTreeNode pNode,CDBrush brush)
+    private void Remove(CollisioinTreeNode pNode,CDBrush brush)
     {
         for (int i = 0; i < 8; ++i)
         {
@@ -240,7 +179,7 @@ public class UECollisionTree
         }
     }
 
-    private void Split(UECollisioinTreeNode pNode)
+    private void Split(CollisioinTreeNode pNode)
     {
         int nBrushes = pNode.LstCDBrush.Count;
 	    if (nBrushes < _MinBrushInNode)
@@ -255,14 +194,14 @@ public class UECollisionTree
 
 	    for (int i = 0; i < 8; ++i)
 	    {
-		    pNode.Children[i] = new UECollisioinTreeNode();
+		    pNode.Children[i] = new CollisioinTreeNode();
 		    pNode.Children[i].AABB.center = new Vector3(candidatex[i&1], candidatey[(i&2)>>1], candidatez[(i&4)>>2]);
 		    pNode.Children[i].AABB.extents = child_ext;
 
 		    //divide brushes into child node
 		    for (int j = 0; j < nBrushes; ++j)
 		    {
-                if (UECollisionUtil.AABBAABBOverlap(pNode.LstCDBrush[j].BoundAABB, pNode.Children[i].AABB))
+                if (BoundsExtansions.AABBAABBOverlap(pNode.LstCDBrush[j].BoundAABB, pNode.Children[i].AABB))
                     pNode.Children[i].LstCDBrush.Add(pNode.LstCDBrush[j]);
 		    }
 
@@ -273,14 +212,14 @@ public class UECollisionTree
         pNode.LstCDBrush.Clear();
     }
 
-    private bool _CapsuleTraceBrush(UECollisioinTreeNode pNode, CapsuleTraceBrushInfo pInfo)
+    private bool _CapsuleTraceBrush(CollisioinTreeNode pNode, CapsuleTraceBrushInfo pInfo)
     {
         if (null == pNode || null == pInfo)
         {
             return false;
         }
 
-        if (!UECollisionUtil.AABBAABBOverlap(pNode.AABB.center, pNode.AABB.extents, pInfo.Bound.center, pInfo.Bound.extents))
+        if (!BoundsExtansions.AABBAABBOverlap(pNode.AABB, pInfo.Bound))
         {
             return false;
         }

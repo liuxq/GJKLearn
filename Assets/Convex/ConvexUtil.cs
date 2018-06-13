@@ -8,7 +8,7 @@ using System.Security.AccessControl;
 using System;
 using System.Reflection;
 
-public class UEEditUtil
+public class ConvexUtil
 {
     public const float CLOSE_VERTEX_DISTANCE_THRESH = .0001f;
     public const int MAX_FACE_IN_HULL = 200;

@@ -17,7 +17,7 @@ using UnityEngine;
     public class HalfSpace
     {
         // Distance transhold to decide if a posion is inside, outside or on the edge of a half space.
-        private static float mDistTreash = UEMathUtil.FLOAT_EPSILON;
+        private static float mDistTreash = MathUtil.FLOAT_EPSILON;
 
         public Vector3 mNormal = Vector3.up;
         public float mD = 0.0f;
@@ -50,7 +50,7 @@ using UnityEngine;
             mD = hs.Dist;
         }
 
-        public static void SetDistThresh(float treash = UEMathUtil.FLOAT_EPSILON)
+        public static void SetDistThresh(float treash = MathUtil.FLOAT_EPSILON)
         {
             mDistTreash = treash;
         }
