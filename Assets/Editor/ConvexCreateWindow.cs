@@ -8,6 +8,7 @@ using System.Collections;
 public class ConvexCreateWindow : EditorWindow
 {
     ConvexCollection cc = null;
+    bool debugShow = false;
 
     [MenuItem("Lxq/Test")]
     static void Init()
@@ -20,6 +21,13 @@ public class ConvexCreateWindow : EditorWindow
         GUILayout.BeginVertical();
 
         cc = EditorGUILayout.ObjectField("凸包文件：", cc, typeof(ConvexCollection)) as ConvexCollection;
+
+        if (GUILayout.Button("创建Convexdatas"))
+        {
+            cc = ScriptableObject.CreateInstance<ConvexCollection>();
+            AssetDatabase.CreateAsset(cc, "Assets/Resources/ConvexDataCollection.asset");
+            AssetDatabase.SaveAssets();
+        }
 
         if (GUILayout.Button("创建Convex"))
         {
@@ -38,11 +46,23 @@ public class ConvexCreateWindow : EditorWindow
             }
         }
 
-        if (GUILayout.Button("创建Convexdatas"))
+        if (GUILayout.Button("从文件添加凸包"))
         {
-            cc = ScriptableObject.CreateInstance<ConvexCollection>();
-            AssetDatabase.CreateAsset(cc, "Assets/Resources/ConvexDataCollection.asset");
-            AssetDatabase.SaveAssets();
+
+            LEditTextFile tf = new LEditTextFile();
+            tf.OpenRead("convex.txt");
+
+            ConvexData cd = new ConvexData();
+            cd.EditLoad(tf);
+            cc.ConvexDatas.Add(cd);
+
+            tf.Close();
+        }
+
+        if (GUILayout.Button("显示凸包"))
+        {
+            cc.DebugRender(debugShow);
+            debugShow = !debugShow;
         }
 
         

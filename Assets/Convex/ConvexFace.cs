@@ -9,6 +9,13 @@ using UnityEngine;
 [Serializable]
 public class CovFace : HalfSpace  
 {
+    public const string _Key_FaceNormal = "FaceNormal";
+    public const string _Key_FaceDist = "FaceDist";
+    public const string _Key_FaceEleNum = "FaceEleNum";
+    public const string _Key_FaceEleVid = "FaceEleVid";
+    public const string _Key_FaceEleNormal = "FaceEleNormal";
+    public const string _Key_FaceEleDist = "FaceEleDist";
+		
     [NonSerialized]
     private ConvexData mCHData;
 
@@ -101,6 +108,37 @@ public class CovFace : HalfSpace
         mLstVIDs.Add(vid);
     }
 
+    public bool EditLoad(LEditTextFile file)
+    {
+        Normal = file.LoadVector3Line(_Key_FaceNormal);
+        Dist = file.LoadValueLine<float>(_Key_FaceDist);
+        int elenum = file.LoadValueLine<int>(_Key_FaceEleNum);
+        for (int i = 0; i < elenum; i++)
+        {
+            HalfSpace hs = new HalfSpace();
+            int vid = file.LoadValueLine<int>(_Key_FaceEleVid);
+            hs.Normal = file.LoadVector3Line(_Key_FaceEleNormal);
+            hs.Dist = file.LoadValueLine<float>(_Key_FaceEleDist);
+            AddElement(vid);
+        } 
+        return true;
+    }
+
+
+    public bool EditSave(LEditTextFile file)
+    {
+        file.SaveVector3Line(_Key_FaceNormal, Normal);
+        file.SaveValueLine<float>(_Key_FaceDist, Dist);
+        int elenum = GetEdgeNum();
+        file.SaveValueLine<int>(_Key_FaceEleNum, elenum);
+        for (int i = 0; i < elenum; i++)
+        {
+            file.SaveValueLine<int>(_Key_FaceEleVid, mLstVIDs[i]);
+            file.SaveVector3Line(_Key_FaceEleNormal, Vector3.up);//废弃
+            file.SaveValueLine<float>(_Key_FaceEleDist, 0);//废弃
+        }
+        return true;
+    }
     public virtual bool Load(LBinaryFile fs, uint version)
     {
         Normal = SLBinary.LoadVector3(fs);

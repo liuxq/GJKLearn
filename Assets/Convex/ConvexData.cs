@@ -15,6 +15,12 @@ using UnityEngine;
         public const uint CHFLAG_SKIP_RAYTRACE = 0x00000008;
         public const uint CHFLAG_SKIP_CAMTRACE = 0x00000010;
 
+        private const string _Key_ConvexDataHead = "=========Convex_Data_Start=========";
+        private const string _Key_ConvexFlag = "ConvexFlag";
+        private const string _Key_VertexNum = "VertexNum";
+        private const string _Key_Vertex = "Vertex";
+        private const string _Key_FaceNum = "FaceNum";
+
         public enum MIRROR_TYPE
         {
             MIRROR_AXIS_X = 0,
@@ -40,6 +46,8 @@ using UnityEngine;
         public List<CovFace> mLstCovFace = new List<CovFace>();
         public uint mFlags;
 
+        //debug
+        public UEDebugMeshRender _DebugRender;
         public ConvexData()
         {
             Flags = 0;
@@ -69,6 +77,48 @@ using UnityEngine;
             return new ConvexData(this);
         }
 
+        public virtual bool EditLoad(LEditTextFile file)
+        {
+            Reset();
+
+	        file.SkipLine(_Key_ConvexDataHead);
+            mFlags = file.LoadValueLine<uint>(_Key_ConvexFlag);
+            int vertnum = file.LoadValueLine<int>(_Key_VertexNum);
+            for (int i = 0; i < vertnum; i++)
+			{
+			    Vector3 vec = file.LoadVector3Line(_Key_Vertex);
+                mLstVertices.Add(vec);
+			}
+	        int facenum = file.LoadValueLine<int>(_Key_FaceNum);
+            for (int i = 0; i < facenum; i++)
+			{
+                CovFace face = new CovFace();
+                face.EditLoad(file);
+                mLstCovFace.Add(face);
+			}
+            //mAABBDirty = true;
+
+	        return true;
+        }
+
+        public virtual bool EditSave(LEditTextFile file)
+        {
+            file.SaveStrLine(_Key_ConvexDataHead, "");
+            file.SaveValueLine<uint>(_Key_ConvexFlag, mFlags);
+            int vertnum = GetVertexNum();
+            file.SaveValueLine<int>(_Key_VertexNum, vertnum);
+            for (int i = 0; i < vertnum; i++)
+            {
+                file.SaveVector3Line(_Key_Vertex, mLstVertices[i]);
+            }
+            int facenum = GetFaceNum();
+            file.SaveValueLine<int>(_Key_FaceNum, facenum);
+            for (int i = 0; i < facenum; i++)
+            {
+                mLstCovFace[i].EditSave(file);
+            }
+            return true;
+        }
         public virtual bool Load(LBinaryFile fs, uint version)
         {
             Reset();
@@ -114,11 +164,14 @@ using UnityEngine;
         {
             if(!debug)
             {
-                //ClearDebugRender();
+                ClearDebugRender();
                 return;
             }
 
-            
+            if(null == _DebugRender)
+            {
+                _DebugRender = new UEDebugMeshRender();
+            }
 
             List<Vector3> vlist = new List<Vector3>();
             List<int> ilist = new List<int>();
@@ -151,14 +204,14 @@ using UnityEngine;
                 }
             }
 
-            //int index = 0;
-            //foreach (Vector3 v in vlist)
-            //{
-            //    _DebugRender.SetPoint(index++, v);
-            //}
-            //_DebugRender.CreateLineRender();
-            ////_DebugRender.AABB = GetAABB();
-            //_DebugRender.Create(vlist, ilist,clist);
+            int index = 0;
+            foreach (Vector3 v in vlist)
+            {
+                _DebugRender.SetPoint(index++, v);
+            }
+            _DebugRender.CreateLineRender();
+            //_DebugRender.AABB = GetAABB();
+            _DebugRender.Create(vlist, ilist, clist);
 
             //if(!string.IsNullOrEmpty(Text))
             //{
@@ -435,6 +488,18 @@ using UnityEngine;
             mLstVertices.Clear();
             mLstCovFace.Clear();
             mAABBDirty = true;
+
+            ClearDebugRender();
+        }
+
+        public void ClearDebugRender()
+        {
+            //debug
+            if (null != _DebugRender)
+            {
+                _DebugRender.Destroy();
+                _DebugRender = null;
+            }
         }
 
         public int GetVertexNum()
