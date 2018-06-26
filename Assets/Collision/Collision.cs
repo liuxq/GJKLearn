@@ -219,39 +219,6 @@ public class Collision
         vel = wishdir * (currentspeed + accelspeed);
     }
 
-    private static void AirAccelerate(Vector3 wishdir, float wishspeed, float accel, float t, ref Vector3 vel)
-    {
-        float addspeed = 0.0f;
-        float accelspeed = 0.0f;
-        float currentspeed = 0.0f;
-        float wishspd = 0.0f;
-
-        wishspd = wishspeed;
-
-        if (wishspd > AIR_MAX_SPEED)
-            wishspd = AIR_MAX_SPEED;
-
-        // Determine veer amount
-        currentspeed = Vector3.Dot(vel, wishdir);
-
-        // See how much to add
-        addspeed = wishspd - currentspeed;
-
-        // If not adding any, done.
-        if (addspeed <= 0)
-            return;
-
-        // Determine acceleration speed after acceleration
-        accelspeed = accel * wishspeed * t;
-
-        // Cap it
-        if (accelspeed > addspeed)
-            accelspeed = addspeed;
-
-        vel.x = wishdir.x * (currentspeed + accelspeed);
-        vel.z = wishdir.z * (currentspeed + accelspeed);
-    }
-
     private static void ClipVelocity(Vector3 velin, Vector3 normal, float bounce, float wishspeedh, ref Vector3 velout)
     {
         float DTP_EPSILON = 0.001f;
@@ -272,20 +239,9 @@ public class Collision
 
         backoff = Mathf.Abs(dtp) * (bounce - 1.0f) * inspd;
         backoff = Mathf.Max(backoff, DTP_EPSILON);
-
+        //Mathf.ClampFloor(ref backoff, DTP_EPSILON);
         velout += backoff * normal;
 
-        //Vector3 velh = velout;
-        //velh.y = 0.0f;
-        //float speedh = UEMathUtil.Normalize(ref velh);
-        //if (wishspeedh > VELOCITY_EPSILON && speedh > wishspeedh)
-        //{
-        //    float f = wishspeedh / speedh;
-        //    velh *= wishspeedh;
-        //    velout.x = velh.x;
-        //    velout.z = velh.z;
-        //    velout.y *= f;
-        //}
     }
 
     private static void TrySlideMove(MoveTraceInfo mv, bool error = false)
@@ -427,7 +383,7 @@ public class Collision
                 int i = 0;
                 for (i = 0; i < numplanes; ++i)
                 {
-                    if (mSlideMoveNormals[i].y < mv.Slope)
+                    if (mSlideMoveNormals[i].y < mv.Slope && mSlideMoveNormals[i].y > 0)
                     {
                         mSlideMoveNormals[i].y = 0;
                         mSlideMoveNormals[i].Normalize();
@@ -524,6 +480,224 @@ public class Collision
         }
     }
 
+    //true:成功，false： 失败，需要stepupmove继续尝试
+    private static bool PreTrySlideMove(MoveTraceInfo mv)
+    {
+        Vector3 orivel = Vector3.zero;
+        Vector3 curvel = Vector3.zero;
+        Vector3 newvel = Vector3.zero;
+        Vector3 oripos = Vector3.zero;
+        Vector3 delta = Vector3.zero;
+        float timeleft = 0.0f;
+        float allfraction = 0.0f;
+        int numplanes = 0;
+
+        mEnvTraceInfo.HalfLen = mv.HalfLen;
+        mEnvTraceInfo.Radius = mv.Radius;
+        orivel = mv.Velocity;
+        curvel = mv.Velocity;
+        oripos = mv.Start;
+
+        timeleft = mv.TimeSec;
+
+        if (MoveLog)
+        {
+            Vector3 origveln = orivel;
+            origveln.Normalize();
+            Debug.Log("TrySlideMove " +
+                " OriVel:" + orivel.ToString("G") +
+                " OriVelDir:" + origveln.ToString("G"));
+        }
+
+        for (int tryidx = 0; tryidx < MAX_TRY_MOVE; ++tryidx)
+        {
+            mv.End = mv.Start;
+            delta = mv.Velocity * timeleft;
+
+            if (MoveLog)
+            {
+                Debug.Log("Try " + tryidx.ToString() +
+                    " start:" + mv.Start.ToString("G") +
+                    " delta:" + delta.ToString("G"));
+            }
+
+            if (delta.sqrMagnitude < SQR_DIST_EPSILON)
+            {
+                if (MoveLog)
+                {
+                    Debug.Log("Try " + tryidx.ToString() + " small delta break");
+                }
+
+                break;
+            }
+
+            mEnvTraceInfo.Start = mv.Start;
+            mEnvTraceInfo.Delta = delta;
+            mEnvTraceInfo.TerStart = mv.Start;
+            mEnvTraceInfo.TerStart.y -= mv.Radius + mv.HalfLen; //foot
+            mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_MOVETRACE;
+
+            bool collide = CollideWithEnv(mEnvTraceInfo);
+            if (mEnvTraceInfo.StartSolid)
+            {
+                // If we started in a solid object, or in solid spac the whole way, zero out our velocity 
+                mv.End = oripos;
+                mv.Velocity = Vector3.zero;
+                if (MoveLog)
+                {
+                    Debug.Log("Try " + tryidx.ToString() + " start solid return");
+                }
+                return true;
+            }
+
+            allfraction += mEnvTraceInfo.Fraction;
+            timeleft -= timeleft * mEnvTraceInfo.Fraction;
+            if (mEnvTraceInfo.Fraction < 0)
+                mv.Start -= mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
+            else
+                mv.Start += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
+            mv.End = mv.Start;
+
+            if (MoveLog)
+            {
+                Vector3 delpos = mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
+                Vector3 deldir = delpos;
+                float deldis = MathUtil.Normalize(ref deldir);
+                Debug.Log("Try " + tryidx.ToString() + " result" +
+                    " end:" + mv.End.ToString("G") +
+                    " fraction:" + mEnvTraceInfo.Fraction.ToString("G") +
+                    " deldis:" + deldis.ToString("G") +
+                    " delpos:" + delpos.ToString("G") +
+                    " deldir:" + deldir.ToString("G"));
+
+                Debug.Log("Normal:" + mEnvTraceInfo.HitNormal.ToString("G"));
+            }
+
+            if (mEnvTraceInfo.Fraction > FRACTION_EPSILON)
+            {
+                //moved some portion of the total distance
+                newvel = mv.Velocity;
+                numplanes = 0;
+            }
+
+            if (!collide)
+            {
+                // covered the entire distance, done and return
+                break;
+            }
+
+            mSlideMoveNormals[numplanes] = mEnvTraceInfo.HitNormal;
+            ++numplanes;
+
+            // modify cur_velocity so it parallels all of the clip planes
+            int i = 0;
+            for (i = 0; i < numplanes; ++i)
+            {
+                if (mSlideMoveNormals[i].y < mv.Slope)//碰到过不去的地方
+                {
+                    mv.TimeSec = timeleft;
+                    return false;
+                }
+
+                ClipVelocity(curvel, mSlideMoveNormals[i], 1.01f, mv.WishSpd, ref mv.Velocity);
+                int j = 0;
+                for (j = 0; j < numplanes; ++j)
+                {
+                    if (j != i)
+                    {
+                        // Are we now moving against this plane?
+                        if (Vector3.Dot(mSlideMoveNormals[j], mv.Velocity) < 0)
+                            break;	// not ok
+                    }
+                }
+                if (j == numplanes)  // Didn't need clip, so we're ok
+                    break;
+            }
+
+            if (MoveLog)
+            {
+                Debug.Log("Try " + tryidx.ToString() + " into other branch" +
+                    " curvel:" + curvel.ToString("G") +
+                    " newvel:" + mv.Velocity.ToString("G"));
+            }
+
+            // Did we go all the way through plane set
+            if (i != numplanes)
+            {
+                // go along this plane
+                // velocity is set in clipping call, no need to set again.
+                curvel = mv.Velocity;
+            }
+            else
+            {	// go along the crease
+                if (numplanes != 2)
+                {
+                    //对于复杂的场景，crease有三个或三个以上的plane, 清除velocity,
+                    //会造成不能移动???
+                    mv.Velocity = Vector3.zero;
+
+                    if (MoveLog)
+                    {
+                        Debug.Log("Try " + tryidx.ToString() + " break try at numplanes!=2");
+                    }
+
+                    break;
+                }
+
+                //only two planes, calc a new speed direction
+                Vector3 dir = Vector3.Cross(mSlideMoveNormals[0], mSlideMoveNormals[1]);
+                //map the orig velocity to the new direction
+                float dtp = Vector3.Dot(dir, mv.Velocity);
+                mv.Velocity = dir * dtp;
+
+                if (MoveLog)
+                {
+                    Debug.Log("Try " + tryidx.ToString() + " when numplanes==2" +
+                        " newvel:" + mv.Velocity.ToString("G"));
+                }
+            }
+
+            //
+            // if original velocity is against the original velocity, stop dead
+            // to avoid tiny occilations in sloping corners
+            //
+            Vector3 nrlmvVel = mv.Velocity;
+            nrlmvVel.Normalize();
+            Vector3 nrloriVel = orivel;
+            nrloriVel.Normalize();
+            float nrldtp = Vector3.Dot(nrlmvVel, nrloriVel);
+
+            if (nrldtp <= FRACTION_EPSILON)
+            {
+                //mv.Velocity = Vector3.zero;
+                mv.Velocity = orivel;
+                mv.TimeSec = timeleft;
+                return false;
+                if (MoveLog)
+                {
+                    Debug.Log("Try " + tryidx.ToString() + " break at dtp<limit");
+                }
+
+                break;
+            }
+        }
+
+        if (allfraction <= FRACTION_EPSILON)
+        {
+            //mv.Velocity = Vector3.zero;
+            mv.Velocity = orivel;
+            mv.TimeSec = timeleft;
+            return false;
+
+            if (MoveLog)
+            {
+                Debug.Log("clear vel when all fraction==0");
+            }
+        }
+
+        return true;
+    }
+
     private static void StepUpMove(MoveTraceInfo mv)
     {
         // step up, move fowrad, and trace down
@@ -555,34 +729,6 @@ public class Collision
 
         Vector3 stepupdist = Vector3.zero;
 
-        if (mEnvTraceInfo.Fraction < 0.8 && mEnvTraceInfo.HitNormal.y < 0 && mEnvTraceInfo.HitNormal.y > -0.707)
-        {
-            //碰头了，而且碰的是立面墙，此时改变方向沿着墙继续上探
-            if (mEnvTraceInfo.Fraction < 0)
-                stepupdist += -mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
-            else
-                stepupdist += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
-
-            Vector3 delta = (Vector3.up - mEnvTraceInfo.HitNormal.y * mEnvTraceInfo.HitNormal).normalized * mv.StepHeight * (1 - mEnvTraceInfo.Fraction);
-
-            mEnvTraceInfo.Start = mv.Start + stepupdist;
-            mEnvTraceInfo.Delta = delta;
-            mEnvTraceInfo.TerStart = mEnvTraceInfo.Start;
-            mEnvTraceInfo.TerStart.y -= mEnvTraceInfo.Radius + mEnvTraceInfo.HalfLen;
-            mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_MOVETRACE;
-            CollideWithEnv(mEnvTraceInfo);
-            if (mEnvTraceInfo.StartSolid)
-            {
-                mv.End = origin;
-
-                if (MoveLog)
-                {
-                    Debug.Log("StepUpMove up start solid");
-                }
-                return;
-            }
-        }
-
         if (mEnvTraceInfo.Fraction < 0)
             stepupdist += - mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
         else
@@ -591,24 +737,31 @@ public class Collision
         Vector3 beforeslidestart = mv.Start + stepupdist;
         mv.Start = beforeslidestart;
 
+
         //move forward
-        TrySlideMove(mv);
-
-        if (MoveLog)
+        if(!PreTrySlideMove(mv))
         {
-            Debug.Log("StepUpMove after forward move:" +
-                " End:" + mv.End.ToString("G") +
-                " Dist:" + (mv.End - beforeslidestart).magnitude.ToString("G") +
-                " Vel:" + mv.Velocity.ToString("G"));
+            mv.Start = origin;
+            mv.Velocity = originvel;
+            TrySlideMove(mv, true);
         }
+        else
+        {
+            if (MoveLog)
+            {
+                Debug.Log("StepUpMove after forward move:" +
+                    " End:" + mv.End.ToString("G") +
+                    " Dist:" + (mv.End - beforeslidestart).magnitude.ToString("G") +
+                    " Vel:" + mv.Velocity.ToString("G"));
+            }
 
-        //trace down
-        float dist = (mv.End - beforeslidestart).magnitude;
-        mEnvTraceInfo.Start = mv.End;
-        mEnvTraceInfo.Delta = new Vector3(0, - dist - stepupdist.magnitude, 0);
-        mEnvTraceInfo.TerStart = mEnvTraceInfo.Start;
-        mEnvTraceInfo.TerStart.y -= mEnvTraceInfo.Radius + mEnvTraceInfo.HalfLen;
-        mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_MOVETRACE;
+            //trace down
+            float dist = (mv.End - beforeslidestart).magnitude;
+            mEnvTraceInfo.Start = mv.End;
+            mEnvTraceInfo.Delta = new Vector3(0, -dist - stepupdist.magnitude, 0);
+            mEnvTraceInfo.TerStart = mEnvTraceInfo.Start;
+            mEnvTraceInfo.TerStart.y -= mEnvTraceInfo.Radius + mEnvTraceInfo.HalfLen;
+            mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_MOVETRACE;
 
         bool collide = CollideWithEnv(mEnvTraceInfo, true);
         if (mEnvTraceInfo.StartSolid)
@@ -640,19 +793,7 @@ public class Collision
                 mv.Velocity = originvel;
                 TrySlideMove(mv, true);
                 //mv.End = origin;
-                
-                //trace down
-                //mEnvTraceInfo.Start = mv.End;
-                //mEnvTraceInfo.Delta = Vector3.down * 0.08f;
-                //mEnvTraceInfo.TerStart = mEnvTraceInfo.Start;
-                //mEnvTraceInfo.TerStart.y -= mEnvTraceInfo.Extent.y;
-                //mEnvTraceInfo.CheckFlag = ConvexData.CHFLAG_SKIP_MOVETRACE;
-                //collide = CollideWithEnv(mEnvTraceInfo, true);
-
-                //if (mEnvTraceInfo.StartSolid || mEnvTraceInfo.HitNormal.y < mv.Slope)
-                //{
-                //    mv.End += mEnvTraceInfo.HitNormal;
-                //}
+                }
             }
         }
     }
@@ -664,7 +805,9 @@ public class Collision
         float wishspeed = mv.WishSpd;
 
         // Set pmove velocity
+        float mag = mv.Velocity.magnitude;
         mv.Velocity.y = 0.0f;
+        mv.Velocity = mv.Velocity.normalized * mag;
         Accelerate(wishdir, wishspeed, mv.Accel, mv.TimeSec, ref mv.Velocity);
         mv.Velocity.y = 0.0f;
         mv.AbsVelocity = mv.Velocity;
@@ -679,7 +822,10 @@ public class Collision
             return;
         }
 
-        StepUpMove(mv);
+        if (!PreTrySlideMove(mv))
+        {
+            StepUpMove(mv);
+        }
     }
 
     private static void JumpFallMove(MoveTraceInfo mv)
@@ -725,7 +871,9 @@ public class Collision
 
         if (mv.TPNormal.y > mv.Slope)
         {
+            float mag = mv.Velocity.magnitude;
             mv.Velocity.y = 0.0f;
+            mv.Velocity = mv.Velocity.normalized * mag;
         }
         else
         {
@@ -817,7 +965,9 @@ public class Collision
 
         if (mv.TPNormal.y > mv.Slope)
         {
+            float mag = mv.Velocity.magnitude;
             mv.Velocity.y = 0.0f;
+            mv.Velocity = mv.Velocity.normalized * mag;
         }
         else
         {
