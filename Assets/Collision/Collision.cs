@@ -319,7 +319,9 @@ public class Collision
                 mv.Start -= mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
             else
                 mv.Start += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
-		    mv.End = mv.Start;
+
+            mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
+            mv.End = mv.Start;
 
             if (MoveLog)
             {
@@ -556,6 +558,8 @@ public class Collision
                 mv.Start -= mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
             else
                 mv.Start += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
+            mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
+
             mv.End = mv.Start;
 
             if (MoveLog)
@@ -733,6 +737,7 @@ public class Collision
             stepupdist += - mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
         else
             stepupdist += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
+        mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
 
         Vector3 beforeslidestart = mv.Start + stepupdist;
         mv.Start = beforeslidestart;
@@ -783,7 +788,9 @@ public class Collision
             mv.End += -mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
         else
             mv.End += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
-        
+
+        mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
+
         //mStepOnPos = mv.End;
         if (collide)
         {

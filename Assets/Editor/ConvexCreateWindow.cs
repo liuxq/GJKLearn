@@ -65,7 +65,15 @@ public class ConvexCreateWindow : EditorWindow
             debugShow = !debugShow;
         }
 
-        
+        if (GUILayout.Button("保存"))
+        {
+            AssetDatabase.DeleteAsset("Assets/Resources/ConvexDataCollection.asset");
+            AssetDatabase.CreateAsset(cc, "Assets/Resources/ConvexDataCollection.asset");
+
+            AssetDatabase.SaveAssets();
+        }
+
+
     }
 
 

@@ -566,9 +566,9 @@ using UnityEngine;
             normal = nor;
 
             lambda = _lambda;
-            float cosAngle = Vector3.Dot(nor, r);
-            float offset = 0.001f / cosAngle;
-            lambda -= offset;
+            //float cosAngle = Vector3.Dot(nor, r);
+            //float offset = 0.001f / cosAngle;
+            //lambda -= offset;
             if (lambda < 0)
             {
                 //lambda *= cosAngle;
@@ -581,14 +581,14 @@ using UnityEngine;
             points.c = B[2];
 
             StartSolid = false;
-            if(_StartSolid)
+            if(lambda == 0)
             {
                 GJKType ret = GjkLocalPenetration_CapsuleConvex(a, b, ref normal, ref lambda, ref points);
                 if (ret == GJKType.EPA_CONTACT)
                     StartSolid = true;
                 else
                 {
-                    lambda -= 0.001f;
+                    //lambda -= 0.001f;
                     if (lambda > 0) lambda = 0;
                 }
             }
@@ -735,7 +735,7 @@ using UnityEngine;
                 }
 
                 //此时明明没有碰撞，但是误差导致的碰撞，向法线方向移动0.001f
-                penetrationDepth = -0.001f;
+                //penetrationDepth = -0.001f;
                 return GJKType.GJK_DEGENERATE;
 
             }
