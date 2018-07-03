@@ -527,6 +527,15 @@ public static class BoundsExtansions
             dirty = false;
         }
 
+        public void Init(Vector3 center, float halfLen, float radius)
+        {
+            mCenter = center;
+            mHalfLen = halfLen;
+            mRadius = radius;
+            p0 = mCenter + mHalfLen * Vector3.up;
+            p1 = mCenter + mHalfLen * Vector3.down;
+            dirty = false;
+        }
 
         private void updateP0P1()
         {

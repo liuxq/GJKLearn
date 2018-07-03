@@ -41,11 +41,16 @@ using UnityEngine;
             Fraction = 1.0f;
             HitObject = null;
             HitFlags = 0u;
+            HitPoints.size = 0;
+            HitPoints.a = 0;
+            HitPoints.b = 0;
+            HitPoints.c = 0;
+            Normal = Vector3.zero;
         }
 
-        public void Init(CAPSULE start, Vector3 delta, uint flags = 0xffffffff)
+        public void Init(Vector3 cStart, float cHalfLen, float cRadius, Vector3 delta, uint flags = 0xffffffff, bool ray = false)
         {
-            Start = start;
+            Start.Init(cStart, cHalfLen, cRadius);
             Delta = delta;
             ChkFlags = flags;
 
@@ -53,6 +58,12 @@ using UnityEngine;
             Fraction = 1.0f;
             HitObject = null;
             HitFlags = 0u;
+
+            HitPoints.size = 0;
+            HitPoints.a = 0;
+            HitPoints.b = 0;
+            HitPoints.c = 0;
+            Normal = Vector3.zero;
 
             Bound.Clear();
             Bound.Encapsulate(Start.Center - Vector3.up * Start.HalfLen);

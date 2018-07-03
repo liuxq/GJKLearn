@@ -446,14 +446,17 @@ using UnityEngine;
             float va = Vector3.Dot(n, bCrossC);//edge region of BC, signed area rbc, u = S(rbc)/S(abc) for a
             float vb = Vector3.Dot(n, cCrossA);//edge region of AC, signed area rac, v = S(rca)/S(abc) for b
             float vc = Vector3.Dot(n, aCrossB);//edge region of AB, signed area rab, w = S(rab)/S(abc) for c
-            float totalArea =va + vb + vc;
-            float denom = totalArea == 0 ? 0 : 1/totalArea;
+            float totalArea = va + vb + vc;
+            float denom = totalArea == 0 ? 0 : 1 / totalArea;
             v = vb * denom;
             w = vc * denom;
         }
 
         static public bool GjkLocalRayCast_CapsuleConvex(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid, ref CollidePoints points)
         {
+            if (b.GetVertexNum() == 0)
+                return false;
+
             bool _StartSolid = true;
             float inflation = a.Radius;
             float maxDist = float.MaxValue;
@@ -581,7 +584,7 @@ using UnityEngine;
             points.c = B[2];
 
             StartSolid = false;
-            if(lambda == 0)
+            if (_StartSolid)
             {
                 GJKType ret = GjkLocalPenetration_CapsuleConvex(a, b, ref normal, ref lambda, ref points);
                 if (ret == GJKType.EPA_CONTACT)
@@ -859,9 +862,9 @@ using UnityEngine;
             normal = nor;
 
             lambda = _lambda;
-            float cosAngle = Vector3.Dot(nor, r);
-            float offset = 0.001f / cosAngle;
-            lambda -= offset;
+            //float cosAngle = Vector3.Dot(nor, r);
+            //float offset = 0.001f / cosAngle;
+            //lambda -= offset;
             if (lambda < 0)
             {
                 //lambda *= cosAngle;
@@ -876,7 +879,7 @@ using UnityEngine;
                     StartSolid = true;
                 else
                 {
-                    lambda -= 0.001f;
+                    //lambda -= 0.001f;
                     if (lambda > 0) lambda = 0;
                 }
             }
@@ -1001,7 +1004,7 @@ using UnityEngine;
                 }
 
                 //此时明明没有碰撞，但是误差导致的碰撞，向法线方向移动0.001f
-                penetrationDepth = -0.001f;
+                //penetrationDepth = -0.001f;
                 return GJKType.GJK_DEGENERATE;
 
             }

@@ -134,6 +134,8 @@ public class Collision
     public const int MAX_TRY_MOVE = 4;
     public const float CAMERA_SIZE = .2f;
 
+    public const float MOVE_OFFSET = 1e-3f;
+
     public static bool MoveLog = false;
 
     private static EnvTraceInfo mEnvTraceInfo = new EnvTraceInfo();
@@ -183,6 +185,8 @@ public class Collision
                 gtrc.End = mEnvTraceInfo.Start - mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
             else
                 gtrc.End = mEnvTraceInfo.Start + mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
+
+            gtrc.End += mEnvTraceInfo.HitNormal * MOVE_OFFSET;
 
         }
         return true;
@@ -320,7 +324,7 @@ public class Collision
             else
                 mv.Start += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
 
-            mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
+            mv.Start += mEnvTraceInfo.HitNormal * MOVE_OFFSET;
             mv.End = mv.Start;
 
             if (MoveLog)
@@ -558,7 +562,7 @@ public class Collision
                 mv.Start -= mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
             else
                 mv.Start += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
-            mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
+            mv.Start += mEnvTraceInfo.HitNormal * MOVE_OFFSET;
 
             mv.End = mv.Start;
 
@@ -737,7 +741,7 @@ public class Collision
             stepupdist += - mEnvTraceInfo.HitNormal * mEnvTraceInfo.Fraction;
         else
             stepupdist += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
-        mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
+        mv.Start += mEnvTraceInfo.HitNormal * MOVE_OFFSET;
 
         Vector3 beforeslidestart = mv.Start + stepupdist;
         mv.Start = beforeslidestart;
@@ -789,17 +793,16 @@ public class Collision
         else
             mv.End += mEnvTraceInfo.Delta * mEnvTraceInfo.Fraction;
 
-        mv.Start += mEnvTraceInfo.HitNormal * 0.001f;
-
-        //mStepOnPos = mv.End;
-        if (collide)
-        {
-            if (mEnvTraceInfo.HitNormal.y < mv.Slope)
+        	mv.Start += mEnvTraceInfo.HitNormal * MOVE_OFFSET;
+            //mStepOnPos = mv.End;
+            if (collide)
             {
-                mv.Start = origin;
-                mv.Velocity = originvel;
-                TrySlideMove(mv, true);
-                //mv.End = origin;
+                if (mEnvTraceInfo.HitNormal.y < mv.Slope)
+                {
+                    mv.Start = origin;
+                    mv.Velocity = originvel;
+                    TrySlideMove(mv, true);
+                    //mv.End = origin;
                 }
             }
         }
@@ -929,7 +932,7 @@ public class Collision
             mGndTraceInfo.Start = mv.End;
             mGndTraceInfo.HalfLen = mv.HalfLen;
             mGndTraceInfo.Radius = mv.Radius;
-            mGndTraceInfo.DeltaY = 0.08f;
+            mGndTraceInfo.DeltaY = 0.08f + (mv.End - origin).magnitude;
 
             if (!RetrieveSupportPlane(mGndTraceInfo))
             {
@@ -1008,14 +1011,16 @@ public class Collision
         mMoveTraceInfo.Start = cdr.Center;
         mMoveTraceInfo.HalfLen = cdr.HalfLen;
         mMoveTraceInfo.Radius = cdr.Radius;
-        mMoveTraceInfo.TPNormal = cdr.TPNormal;
-        mMoveTraceInfo.Slope = cdr.SlopeThresh;
+        mMoveTraceInfo.Velocity = cdr.ClipVel; // the last move speed
         mMoveTraceInfo.TimeSec = cdr.TimeSec;
+        mMoveTraceInfo.Slope = cdr.SlopeThresh;
+        mMoveTraceInfo.TPNormal = cdr.TPNormal;
         mMoveTraceInfo.WishDir = cdr.VelDirH;
         mMoveTraceInfo.WishSpd = cdr.Speed;
-        mMoveTraceInfo.Accel = Collision.MOVE_ACCELERATION;
-        mMoveTraceInfo.Velocity = cdr.ClipVel; // the last move speed
+        
         mMoveTraceInfo.MaxFallSpd = Collision.MAX_FALL_SPEED;
+
+        mMoveTraceInfo.Accel = Collision.MOVE_ACCELERATION;
         mMoveTraceInfo.Gravity = cdr.Gravity;
         mMoveTraceInfo.StepHeight = cdr.StepHeight;
 
@@ -1054,7 +1059,7 @@ public class Collision
         info.ClsFlag = 0;
         info.HitEnv = HIT_ENVTYPE.HIT_NULL;
 
-        mCapsuleTraceBrushInfo.Init(new CAPSULE(info.Start, info.HalfLen, info.Radius), info.Delta, info.CheckFlag);
+        mCapsuleTraceBrushInfo.Init(info.Start, info.HalfLen, info.Radius, info.Delta, info.CheckFlag);
 
         if (CapsuleCollideWithBrush(mCapsuleTraceBrushInfo) && mCapsuleTraceBrushInfo.Fraction < info.Fraction)
         {
@@ -1066,7 +1071,7 @@ public class Collision
 
             if (!info.StartSolid)
             {
-                if (SupportPlane)
+                if (SupportPlane && mCapsuleTraceBrushInfo.HitObject != null && mCapsuleTraceBrushInfo.HitObject.cd != null)
                 {
                     CollidePoints cp = mCapsuleTraceBrushInfo.HitPoints;
                     if (cp.size == 3)//和面最近，直接用陷入法线
