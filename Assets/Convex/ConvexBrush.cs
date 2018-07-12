@@ -29,9 +29,7 @@ using UnityEngine;
 
         public CapsuleTraceBrushInfo()
         {
-            Start.Center = Vector3.zero;
-            Start.HalfLen = 0;
-            Start.Radius = 0;
+            Start.Init(Vector3.zero, 0, 0, Quaternion.identity);
             Delta = Vector3.zero;
             Bound.Clear();
             ChkFlags = 0u;
@@ -48,9 +46,9 @@ using UnityEngine;
             Normal = Vector3.zero;
         }
 
-        public void Init(Vector3 cStart, float cHalfLen, float cRadius, Vector3 delta, uint flags = 0xffffffff, bool ray = false)
+        public void Init(Vector3 cStart, float cHalfLen, float cRadius, Quaternion rot, Vector3 delta, uint flags = 0xffffffff, bool ray = false)
         {
-            Start.Init(cStart, cHalfLen, cRadius);
+            Start.Init(cStart, cHalfLen, cRadius, rot);
             Delta = delta;
             ChkFlags = flags;
 
@@ -66,10 +64,10 @@ using UnityEngine;
             Normal = Vector3.zero;
 
             Bound.Clear();
-            Bound.Encapsulate(Start.Center - Vector3.up * Start.HalfLen);
-            Bound.Encapsulate(Start.Center + Vector3.up * Start.HalfLen);
-            Bound.Encapsulate(Start.Center - Vector3.up * Start.HalfLen + Delta);
-            Bound.Encapsulate(Start.Center + Vector3.up * Start.HalfLen + Delta);
+            Bound.Encapsulate(Start.P0);
+            Bound.Encapsulate(Start.P1);
+            Bound.Encapsulate(Start.P0 + Delta);
+            Bound.Encapsulate(Start.P1 + Delta);
             Bound.Expand(Start.Radius);
             Bound.Expand(Epsilon);
         }

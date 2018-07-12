@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class CharacterMove : MonoBehaviour {
-    public Bounds aabb;
+    public float Radius = 0.5f;
+    public float HalfLen = 0.5f;
+
     private MoveCDR cdr = null;
 
 	// Use this for initialization
@@ -11,8 +13,8 @@ public class CharacterMove : MonoBehaviour {
         cdr = new MoveCDR();
         cdr.Center = this.transform.position;
         cdr.TPNormal = Vector3.up;
-        cdr.Radius = 0.5f;
-        cdr.HalfLen = 0.5f;
+        cdr.Radius = Radius;
+        cdr.HalfLen = HalfLen;
 	}
 	
 	// Update is called once per frame

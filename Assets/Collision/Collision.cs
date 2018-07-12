@@ -70,6 +70,7 @@ public class EnvTraceInfo
     public Vector3 Start;       //brush start
     public float HalfLen;
     public float Radius;
+    public Quaternion rot;
     public Vector3 Delta;
     public Vector3 TerStart;    //terrain start
     public uint CheckFlag;      //check brush flag
@@ -1059,7 +1060,7 @@ public class Collision
         info.ClsFlag = 0;
         info.HitEnv = HIT_ENVTYPE.HIT_NULL;
 
-        mCapsuleTraceBrushInfo.Init(info.Start, info.HalfLen, info.Radius, info.Delta, info.CheckFlag);
+        mCapsuleTraceBrushInfo.Init(info.Start, info.HalfLen, info.Radius, Quaternion.Euler(0,0,0),info.Delta, info.CheckFlag);
 
         if (CapsuleCollideWithBrush(mCapsuleTraceBrushInfo) && mCapsuleTraceBrushInfo.Fraction < info.Fraction)
         {

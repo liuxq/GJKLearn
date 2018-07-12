@@ -38,7 +38,7 @@ public class CollisionMan : MonoBehaviour
         bool ret = false;
         foreach(Transform tf in DynamicColliders)
         {
-            CAPSULE b = new CAPSULE(tf.transform.position, 0.5f, 0.5f);
+            CAPSULE b = new CAPSULE(tf.transform.position, 0.5f, 0.5f, Quaternion.identity);
             float fFraction = 100.0f;
             Vector3 normal = Vector3.up;
             bool bStartSolid = false;
