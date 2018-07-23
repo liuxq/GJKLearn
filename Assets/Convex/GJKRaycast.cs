@@ -452,7 +452,46 @@ using UnityEngine;
             w = vc * denom;
         }
 
-        static public bool GjkLocalRayCast_CapsuleConvex(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid, ref CollidePoints points)
+        static Vector3 getClosestPoint(Vector3 closest, int size, ConvexData convex)
+	    {
+            Vector3 closestB = Vector3.zero;
+            switch(size)
+		    {
+		        case 1:
+			        {
+                    closestB = convex.GetVertex(B[0]);
+                    break;
+                    }
+            case 2:
+			        {
+                    float v = 0;
+                    Vector3 B0 = convex.GetVertex(B[0]);
+                    Vector3 B1 = convex.GetVertex(B[1]);
+                    barycentricCoordinates(closest, Q[0], Q[1], ref v);
+                    Vector3 bv = B1 - B0;
+                    closestB = bv * v + B0;
+
+                    break;
+                    }
+		        case 3:
+			        {
+                    //calculate the Barycentric of closest point p in the mincowsky sum
+                    float v = 0, w = 0;
+                    Vector3 B0 = convex.GetVertex(B[0]);
+                    Vector3 B1 = convex.GetVertex(B[1]);
+                    Vector3 B2 = convex.GetVertex(B[2]);
+                    barycentricCoordinates(closest, Q[0], Q[1], Q[2], ref v, ref w);
+                    Vector3 bv0 = B1 - B0;
+                    Vector3 bv1 = B2 - B0;
+                    closestB = B0 + bv0 * v + bv1 * w;
+                    break;
+			        }
+		    }
+            return closestB;
+
+        }
+
+        static public bool GjkLocalRayCast_CapsuleConvex(CAPSULE a, ConvexData b, Vector3 r, ref float lambda, ref Vector3 normal, ref bool StartSolid, ref CollidePoints points, ref Vector3 closeB)
         {
             if (b.GetVertexNum() == 0)
                 return false;
@@ -583,15 +622,18 @@ using UnityEngine;
             points.b = B[1];
             points.c = B[2];
 
+            Vector3 closestP = bCon? closest: prevClosest;
+            closeB = getClosestPoint(closestP,size, b);
+            //closestA = V3Sel(aQuadratic, V3NegScaleSub(nor, a.getMargin(), closA), closA);
+
             StartSolid = false;
             if (_StartSolid)
             {
-                GJKType ret = GjkLocalPenetration_CapsuleConvex(a, b, ref normal, ref lambda, ref points);
+                GJKType ret = GjkLocalPenetration_CapsuleConvex(a, b, ref normal, ref lambda, ref points, ref closeB);
                 if (ret == GJKType.EPA_CONTACT)
                     StartSolid = true;
                 else
                 {
-                    //lambda -= 0.001f;
                     if (lambda > 0) lambda = 0;
                 }
             }
@@ -610,7 +652,7 @@ using UnityEngine;
         static float GJK_RELATIVE_EPSILON = 0.0004f;//square of 2%.
         //ML: if we are using gjk local which means one of the object will be sphere/capsule, in that case, if we define takeCoreShape is true, we just need to return the closest point as the sphere center or a point in the capsule segment. This will increase the stability
         //for the manifold recycling code
-        public static GJKType GjkLocalPenetration_CapsuleConvex(CAPSULE a, ConvexData b, ref Vector3 normal, ref float penetrationDepth, ref CollidePoints points)
+        public static GJKType GjkLocalPenetration_CapsuleConvex(CAPSULE a, ConvexData b, ref Vector3 normal, ref float penetrationDepth, ref CollidePoints points, ref Vector3 closeB)
         {
             float marginA = a.getMargin();
             float marginB = 0;//b.getMargin();
@@ -682,6 +724,9 @@ using UnityEngine;
                         //PX_ASSERT(FAllGrtr(dist, FEps));
                         Vector3 n = closest / dist;//normalise
                         normal = n;
+
+                        closeB = getClosestPoint(closest, size, b);
+
                         penetrationDepth = dist - sumOrignalMargin;
 
                         points.size = size;
@@ -716,7 +761,10 @@ using UnityEngine;
 
                 float sqExpandedMargin = sumOrignalMargin * sumOrignalMargin;
                 //Reset back to older closest point
-                closest = prevClosest;//closA, closB ;
+                closest = prevClosest;
+
+                closeB = getClosestPoint(closest, size, b);
+
                 sDist = minDist;
 
                 float dist = Mathf.Sqrt(sDist);

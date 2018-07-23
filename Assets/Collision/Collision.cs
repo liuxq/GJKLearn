@@ -76,6 +76,7 @@ public class EnvTraceInfo
     public uint CheckFlag;      //check brush flag
     public float Fraction;
     public Vector3 HitNormal;
+    public Vector3 HitPos;
     public bool StartSolid;     //start in solid
     public uint ClsFlag;        //collision flag
     public uint HitEnv;         //hit enviroment type
@@ -1069,6 +1070,7 @@ public class Collision
             info.StartSolid = mCapsuleTraceBrushInfo.StartSolid;
             info.HitEnv = HIT_ENVTYPE.HIT_BRUSH;
             info.ClsFlag = mCapsuleTraceBrushInfo.HitFlags;
+            info.HitPos = mCapsuleTraceBrushInfo.CloseB;            
 
             if (!info.StartSolid)
             {

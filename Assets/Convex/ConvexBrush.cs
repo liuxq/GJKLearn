@@ -26,6 +26,7 @@ using UnityEngine;
         public CollidePoints HitPoints;
         public uint HitFlags;     //  the flags of hit convex
         public Vector3 Normal;
+        public Vector3 CloseB;
 
         public CapsuleTraceBrushInfo()
         {
@@ -191,7 +192,7 @@ using UnityEngine;
 
             if (BoundsExtansions.AABBAABBOverlap(BoundAABB, info.Bound))
             {
-                ret = GJKRaycast.GjkLocalRayCast_CapsuleConvex(info.Start, this.cd, info.Delta, ref info.Fraction, ref info.Normal, ref info.StartSolid, ref info.HitPoints);
+                ret = GJKRaycast.GjkLocalRayCast_CapsuleConvex(info.Start, this.cd, info.Delta, ref info.Fraction, ref info.Normal, ref info.StartSolid, ref info.HitPoints, ref info.CloseB);
             }
 
             if (ret)
